@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import {
-  getAccount,
   addresses,
   getTokenBalance,
   getTokenInfo,
   approveToken,
   deposit,
 } from '../utils/web3';
+import { useWallet } from '../context/WalletContext';
 import './Page.css';
 
 export default function DepositPage() {
-  const [user, setUser] = useState(null);
+  const { user } = useWallet();
   const [amount, setAmount] = useState('');
   const [balance, setBalance] = useState(0n);
   const [decimals, setDecimals] = useState(18);
@@ -20,10 +20,6 @@ export default function DepositPage() {
   const [loading, setLoading] = useState(false);
 
   const asset = addresses.collateralAsset;
-
-  useEffect(() => {
-    getAccount().then(setUser);
-  }, []);
 
   useEffect(() => {
     if (!asset) return;
@@ -75,7 +71,7 @@ export default function DepositPage() {
       {!user && <p className="muted">Connect MetaMask first.</p>}
       {user && (
         <div className="card">
-          <p><strong>Wallet balance:</strong> {ethers.formatUnits(balance, decimals)} {symbol}</p>
+          <p><strong>Wallet balance:</strong> {typeof balance === 'bigint' ? ethers.formatUnits(balance, decimals) : '0'} {symbol}</p>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Amount ({symbol})</label>

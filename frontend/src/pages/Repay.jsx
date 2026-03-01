@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import {
-  getAccount,
   addresses,
   getUserPosition,
   getTokenBalance,
@@ -10,10 +9,11 @@ import {
   approveToken,
   repay,
 } from '../utils/web3';
+import { useWallet } from '../context/WalletContext';
 import './Page.css';
 
 export default function RepayPage() {
-  const [user, setUser] = useState(null);
+  const { user } = useWallet();
   const [amount, setAmount] = useState('');
   const [position, setPosition] = useState({ collateral: 0n, debt: 0n });
   const [balance, setBalance] = useState(0n);
@@ -35,16 +35,20 @@ export default function RepayPage() {
   };
 
   useEffect(() => {
-    getAccount().then(setUser);
-  }, []);
-
-  useEffect(() => {
     refresh();
   }, [user, asset]);
 
+  const formatWei = (wei, d) => {
+    if (wei === undefined || wei === null) return '0';
+    try {
+      return typeof wei === 'bigint' ? ethers.formatUnits(wei, d ?? 18) : String(wei);
+    } catch {
+      return '0';
+    }
+  };
   const maxAmount = () => {
-    const debt = position.debt;
-    const bal = balance;
+    const debt = position?.debt ?? 0n;
+    const bal = balance ?? 0n;
     const max = debt < bal ? debt : bal;
     setAmount(ethers.formatUnits(max, decimals));
   };
@@ -79,8 +83,8 @@ export default function RepayPage() {
       {!user && <p className="muted">Connect MetaMask first.</p>}
       {user && (
         <div className="card">
-          <p><strong>Your debt:</strong> {ethers.formatUnits(position.debt, decimals)} {symbol}</p>
-          <p><strong>Wallet balance:</strong> {ethers.formatUnits(balance, decimals)} {symbol}</p>
+          <p><strong>Your debt:</strong> {formatWei(position?.debt, decimals)} {symbol}</p>
+          <p><strong>Wallet balance:</strong> {formatWei(balance, decimals)} {symbol}</p>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Amount to repay ({symbol})</label>

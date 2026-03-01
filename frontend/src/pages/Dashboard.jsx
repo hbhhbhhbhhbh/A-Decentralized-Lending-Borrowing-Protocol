@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ethers } from 'ethers';
 import {
-  getAccount,
   getUserPosition,
   getHealthFactor,
   getUtilizationRate,
@@ -11,10 +10,11 @@ import {
   getPrice,
   addresses,
 } from '../utils/web3';
+import { useWallet } from '../context/WalletContext';
 import './Page.css';
 
 export default function Dashboard() {
-  const [user, setUser] = useState(null);
+  const { user } = useWallet();
   const [position, setPosition] = useState({ collateral: 0n, debt: 0n });
   const [healthFactor, setHealthFactor] = useState(null);
   const [utilization, setUtilization] = useState(null);
@@ -27,22 +27,19 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user || !addresses.lendingPool) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     async function load() {
-      const acc = await getAccount();
-      if (cancelled) return;
-      setUser(acc);
-      if (!acc || !addresses.lendingPool) {
-        setLoading(false);
-        return;
-      }
       try {
         const [pos, hf, util, colBal, borBal, colInfo, borInfo, colPr, borPr] = await Promise.all([
-          getUserPosition(acc),
-          getHealthFactor(acc),
+          getUserPosition(user),
+          getHealthFactor(user),
           getUtilizationRate(),
-          getTokenBalance(addresses.collateralAsset, acc),
-          getTokenBalance(addresses.borrowAsset, acc),
+          getTokenBalance(addresses.collateralAsset, user),
+          getTokenBalance(addresses.borrowAsset, user),
           getTokenInfo(addresses.collateralAsset),
           getTokenInfo(addresses.borrowAsset),
           addresses.collateralAsset ? getPrice(addresses.collateralAsset) : null,
@@ -65,18 +62,36 @@ export default function Dashboard() {
     }
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [user]);
 
-  const formatToken = (wei, decimals) => (decimals !== undefined ? ethers.formatUnits(wei, decimals) : ethers.formatEther(wei));
-  const hfDisplay = healthFactor != null ? (Number(ethers.formatUnits(healthFactor, 18))).toFixed(2) : '—';
-  const utilDisplay = utilization != null ? (Number(utilization) / 100).toFixed(2) + '%' : '—';
-  const collateralValue = position.collateral && collateralPrice
-    ? Number(ethers.formatUnits(position.collateral * collateralPrice, collateralInfo.decimals + 8))
-    : 0;
-  const debtValue = position.debt && borrowPrice
-    ? Number(ethers.formatUnits(position.debt * borrowPrice, borrowInfo.decimals + 8))
-    : 0;
-  const isLiquidatable = healthFactor != null && healthFactor < ethers.parseUnits('1', 18);
+  const formatToken = (wei, decimals) => {
+    if (wei === undefined || wei === null) return '0';
+    try {
+      const d = decimals !== undefined ? decimals : 18;
+      return typeof wei === 'bigint' ? ethers.formatUnits(wei, d) : String(wei);
+    } catch {
+      return '0';
+    }
+  };
+  let hfDisplay = '—';
+  try {
+    if (healthFactor != null && typeof healthFactor === 'bigint') {
+      hfDisplay = Number(ethers.formatUnits(healthFactor, 18)).toFixed(2);
+    }
+  } catch {}
+  const utilDisplay = utilization != null && (typeof utilization === 'bigint' || typeof utilization === 'number')
+    ? (Number(utilization) / 100).toFixed(2) + '%' : '—';
+  let collateralValue = 0;
+  let debtValue = 0;
+  try {
+    if (position?.collateral != null && collateralPrice != null && typeof position.collateral === 'bigint' && typeof collateralPrice === 'bigint') {
+      collateralValue = Number(ethers.formatUnits(position.collateral * collateralPrice, (collateralInfo?.decimals ?? 18) + 8));
+    }
+    if (position?.debt != null && borrowPrice != null && typeof position.debt === 'bigint' && typeof borrowPrice === 'bigint') {
+      debtValue = Number(ethers.formatUnits(position.debt * borrowPrice, (borrowInfo?.decimals ?? 18) + 8));
+    }
+  } catch {}
+  const isLiquidatable = healthFactor != null && typeof healthFactor === 'bigint' && healthFactor < ethers.parseUnits('1', 18);
 
   if (loading) {
     return <div className="page"><p className="muted">Loading...</p></div>;

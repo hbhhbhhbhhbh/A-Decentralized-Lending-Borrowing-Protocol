@@ -2,7 +2,10 @@
  * Contract addresses. Update after deployment (Remix or Hardhat).
  * Use env or default to local / Sepolia.
  */
-const chainId = parseInt(import.meta.env.VITE_CHAIN_ID || '31337', 10);
+const rawChainId = import.meta.env.VITE_CHAIN_ID || '31337';
+const chainId = typeof rawChainId === 'string' && rawChainId.startsWith('0x')
+  ? parseInt(rawChainId, 16)
+  : parseInt(rawChainId, 10);
 
 // Defaults for Hardhat local (deploy script will output these)
 const LOCAL = {

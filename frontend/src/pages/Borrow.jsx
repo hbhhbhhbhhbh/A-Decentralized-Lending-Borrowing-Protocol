@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import {
-  getAccount,
   addresses,
   getUserPosition,
   getHealthFactor,
-  getTokenBalance,
   getTokenInfo,
   borrow,
 } from '../utils/web3';
+import { useWallet } from '../context/WalletContext';
 import './Page.css';
 
 export default function BorrowPage() {
-  const [user, setUser] = useState(null);
+  const { user } = useWallet();
   const [amount, setAmount] = useState('');
   const [position, setPosition] = useState({ collateral: 0n, debt: 0n });
   const [healthFactor, setHealthFactor] = useState(null);
@@ -22,10 +21,6 @@ export default function BorrowPage() {
   const [loading, setLoading] = useState(false);
 
   const asset = addresses.borrowAsset;
-
-  useEffect(() => {
-    getAccount().then(setUser);
-  }, []);
 
   useEffect(() => {
     if (!user || !asset) return;
@@ -39,7 +34,7 @@ export default function BorrowPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!amount || !user) return;
+    if (!amount || !user || !asset) return;
     setLoading(true);
     setTx({ status: '', hash: '' });
     try {
@@ -57,7 +52,20 @@ export default function BorrowPage() {
     }
   };
 
-  const hfDisplay = healthFactor != null ? Number(ethers.formatUnits(healthFactor, 18)).toFixed(2) : '—';
+  let hfDisplay = '—';
+  try {
+    if (healthFactor != null && typeof healthFactor === 'bigint') {
+      hfDisplay = Number(ethers.formatUnits(healthFactor, 18)).toFixed(2);
+    }
+  } catch {}
+  const formatWei = (wei, d) => {
+    if (wei === undefined || wei === null) return '0';
+    try {
+      return typeof wei === 'bigint' ? ethers.formatUnits(wei, d ?? 18) : String(wei);
+    } catch {
+      return '0';
+    }
+  };
 
   return (
     <div className="page">
@@ -66,8 +74,8 @@ export default function BorrowPage() {
       {!user && <p className="muted">Connect MetaMask first.</p>}
       {user && (
         <div className="card">
-          <p><strong>Your collateral:</strong> {ethers.formatUnits(position.collateral, 18)} (collateral asset)</p>
-          <p><strong>Current debt:</strong> {ethers.formatUnits(position.debt, decimals)} {symbol}</p>
+          <p><strong>Your collateral:</strong> {formatWei(position?.collateral, 18)} (collateral asset)</p>
+          <p><strong>Current debt:</strong> {formatWei(position?.debt, decimals)} {symbol}</p>
           <p><strong>Health factor:</strong> {hfDisplay}</p>
           <form onSubmit={handleSubmit}>
             <div className="form-group">

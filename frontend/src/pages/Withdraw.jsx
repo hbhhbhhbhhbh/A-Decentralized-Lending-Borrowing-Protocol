@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import {
-  getAccount,
   addresses,
   getUserPosition,
   getHealthFactor,
   getTokenInfo,
   withdraw,
 } from '../utils/web3';
+import { useWallet } from '../context/WalletContext';
 import './Page.css';
 
 export default function WithdrawPage() {
-  const [user, setUser] = useState(null);
+  const { user } = useWallet();
   const [amount, setAmount] = useState('');
   const [position, setPosition] = useState({ collateral: 0n, debt: 0n });
   const [healthFactor, setHealthFactor] = useState(null);
@@ -23,10 +23,6 @@ export default function WithdrawPage() {
   const asset = addresses.collateralAsset;
 
   useEffect(() => {
-    getAccount().then(setUser);
-  }, []);
-
-  useEffect(() => {
     if (!user || !asset) return;
     getUserPosition(user).then(setPosition);
     getHealthFactor(user).then(setHealthFactor);
@@ -36,7 +32,7 @@ export default function WithdrawPage() {
     });
   }, [user, asset]);
 
-  const maxAmount = () => setAmount(ethers.formatUnits(position.collateral, decimals));
+  const maxAmount = () => setAmount(ethers.formatUnits(position?.collateral ?? 0n, decimals));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,7 +55,20 @@ export default function WithdrawPage() {
     }
   };
 
-  const hfDisplay = healthFactor != null ? Number(ethers.formatUnits(healthFactor, 18)).toFixed(2) : '—';
+  let hfDisplay = '—';
+  try {
+    if (healthFactor != null && typeof healthFactor === 'bigint') {
+      hfDisplay = Number(ethers.formatUnits(healthFactor, 18)).toFixed(2);
+    }
+  } catch {}
+  const formatWei = (wei, d) => {
+    if (wei === undefined || wei === null) return '0';
+    try {
+      return typeof wei === 'bigint' ? ethers.formatUnits(wei, d ?? 18) : String(wei);
+    } catch {
+      return '0';
+    }
+  };
 
   return (
     <div className="page">
@@ -68,7 +77,7 @@ export default function WithdrawPage() {
       {!user && <p className="muted">Connect MetaMask first.</p>}
       {user && (
         <div className="card">
-          <p><strong>Deposited collateral:</strong> {ethers.formatUnits(position.collateral, decimals)} {symbol}</p>
+          <p><strong>Deposited collateral:</strong> {formatWei(position?.collateral, decimals)} {symbol}</p>
           <p><strong>Health factor:</strong> {hfDisplay}</p>
           <form onSubmit={handleSubmit}>
             <div className="form-group">

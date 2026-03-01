@@ -55,16 +55,18 @@ export function getSigner() {
 export function getLendingPoolContract(useSigner = false) {
   const addr = addresses.lendingPool;
   if (!addr) return null;
+  if (useSigner && !signer) return null;
   const p = getProvider();
   if (!p) return null;
-  return new ethers.Contract(addr, LENDING_POOL_ABI, useSigner && signer ? signer : p);
+  return new ethers.Contract(addr, LENDING_POOL_ABI, useSigner ? signer : p);
 }
 
 export function getERC20Contract(tokenAddress, useSigner = false) {
   if (!tokenAddress) return null;
+  if (useSigner && !signer) return null;
   const p = getProvider();
   if (!p) return null;
-  return new ethers.Contract(tokenAddress, ERC20_ABI, useSigner && signer ? signer : p);
+  return new ethers.Contract(tokenAddress, ERC20_ABI, useSigner ? signer : p);
 }
 
 export function getOracleContract(useSigner = false) {

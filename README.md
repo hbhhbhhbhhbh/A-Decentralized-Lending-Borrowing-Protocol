@@ -2,6 +2,8 @@
 
 A production-quality, Aave/Compound-style decentralized lending protocol with collateralized borrowing, liquidations, flash loans, and governance token rewards.
 
+**完整流程（MetaMask 配置 + 连接 + 交互）：见 [METAMASK_AND_FLOW.md](./METAMASK_AND_FLOW.md)。**
+
 ---
 
 ## 1. Architecture

@@ -86,9 +86,10 @@ export default function AnalyticsPage() {
     utilization: h.utilization,
     index: i,
   }));
+  // Note: totalCollateral and totalBorrowed are different tokens (collateral vs borrow asset), so we show them as separate slices (raw wei), not combined.
   const pieData = [
-    { name: 'Borrowed', value: totalBorrowed ? Number(totalBorrowed) : 0, color: '#ff6b6b' },
-    { name: 'Available', value: totalCollateral && totalBorrowed ? Number(totalCollateral) - Number(totalBorrowed) : Number(totalCollateral || 0), color: '#00d4aa' },
+    { name: 'Total collateral (pool, wei)', value: totalCollateral ? Number(totalCollateral) : 0, color: '#00d4aa' },
+    { name: 'Total borrowed (wei)', value: totalBorrowed ? Number(totalBorrowed) : 0, color: '#ff6b6b' },
   ].filter((d) => d.value > 0);
 
   return (

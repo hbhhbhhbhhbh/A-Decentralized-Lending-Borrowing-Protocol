@@ -1,19 +1,17 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import {
-  getAccount,
   addresses,
   getFlashLoanFee,
   getTokenBalance,
   getTokenInfo,
-  getTokenAllowance,
-  approveToken,
   flashLoan,
 } from '../utils/web3';
+import { useWallet } from '../context/WalletContext';
 import './Page.css';
 
 export default function FlashLoanPage() {
-  const [user, setUser] = useState(null);
+  const { user } = useWallet();
   const [asset, setAsset] = useState(addresses.borrowAsset || '');
   const [amount, setAmount] = useState('');
   const [fee, setFee] = useState(null);
@@ -24,10 +22,6 @@ export default function FlashLoanPage() {
   const [loading, setLoading] = useState(false);
 
   const receiverAddress = addresses.flashLoanReceiver;
-
-  useEffect(() => {
-    getAccount().then(setUser);
-  }, []);
 
   useEffect(() => {
     if (!asset || !user) return;
@@ -83,7 +77,7 @@ export default function FlashLoanPage() {
             <p className="danger">Set VITE_FLASH_LOAN_RECEIVER in .env to the FlashLoanReceiverExample contract address.</p>
           )}
           <p><strong>Asset:</strong> {symbol} ({asset ? `${asset.slice(0, 10)}...` : '—'})</p>
-          <p><strong>Your balance:</strong> {ethers.formatUnits(balance, decimals)} {symbol}</p>
+          <p><strong>Your balance:</strong> {typeof balance === 'bigint' ? ethers.formatUnits(balance, decimals) : '0'} {symbol}</p>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Amount to flash borrow</label>
@@ -95,7 +89,7 @@ export default function FlashLoanPage() {
               />
             </div>
             {fee != null && (
-              <p className="form-hint">Fee: {ethers.formatUnits(fee, decimals)} {symbol}</p>
+              <p className="form-hint">Fee: {typeof fee === 'bigint' ? ethers.formatUnits(fee, decimals) : String(fee)} {symbol}</p>
             )}
             <button type="submit" className="submit-btn" disabled={loading || !amount || !receiverAddress}>
               {loading ? 'Executing...' : 'Execute Flash Loan'}

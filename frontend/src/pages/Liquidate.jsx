@@ -1,21 +1,20 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import {
-  getAccount,
   addresses,
   getLendingPoolContract,
   getHealthFactor,
   getUserPosition,
   getTokenBalance,
   getTokenInfo,
-  getTokenAllowance,
   approveToken,
   liquidate,
 } from '../utils/web3';
+import { useWallet } from '../context/WalletContext';
 import './Page.css';
 
 export default function LiquidatePage() {
-  const [user, setUser] = useState(null);
+  const { user } = useWallet();
   const [targetAddress, setTargetAddress] = useState('');
   const [targetPosition, setTargetPosition] = useState({ collateral: 0n, debt: 0n });
   const [targetLiquidatable, setTargetLiquidatable] = useState(false);
@@ -27,10 +26,6 @@ export default function LiquidatePage() {
   const [symbolDebt, setSymbolDebt] = useState('USD');
   const [tx, setTx] = useState({ status: '', hash: '' });
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    getAccount().then(setUser);
-  }, []);
 
   useEffect(() => {
     if (!addresses.collateralAsset || !addresses.borrowAsset) return;
@@ -99,8 +94,21 @@ export default function LiquidatePage() {
     }
   };
 
-  const hfDisplay = targetHf != null ? Number(ethers.formatUnits(targetHf, 18)).toFixed(2) : '—';
-  const needsApproval = targetPosition.debt > 0n;
+  let hfDisplay = '—';
+  try {
+    if (targetHf != null && typeof targetHf === 'bigint') {
+      hfDisplay = Number(ethers.formatUnits(targetHf, 18)).toFixed(2);
+    }
+  } catch {}
+  const formatWei = (wei, d) => {
+    if (wei === undefined || wei === null) return '0';
+    try {
+      return typeof wei === 'bigint' ? ethers.formatUnits(wei, d ?? 18) : String(wei);
+    } catch {
+      return '0';
+    }
+  };
+  const needsApproval = (targetPosition?.debt ?? 0n) > 0n;
   const handleApprove = async () => {
     if (!user) return;
     await approveToken(addresses.borrowAsset, addresses.lendingPool, ethers.MaxUint256);
@@ -115,7 +123,7 @@ export default function LiquidatePage() {
       {!user && <p className="muted">Connect MetaMask first.</p>}
       {user && (
         <div className="card">
-          <p><strong>Your {symbolDebt} balance:</strong> {ethers.formatUnits(myDebtBalance, decimalsDebt)} (need this to repay target&apos;s debt)</p>
+          <p><strong>Your {symbolDebt} balance:</strong> {formatWei(myDebtBalance, decimalsDebt)} (need this to repay target&apos;s debt)</p>
           <form onSubmit={(e) => { e.preventDefault(); }}>
             <div className="form-group">
               <label>Target address (unhealthy position)</label>
@@ -130,8 +138,8 @@ export default function LiquidatePage() {
           {targetAddress && ethers.isAddress(targetAddress) && (
             <div className="list-item" style={{ marginTop: '1rem' }}>
               <div>
-                <p><strong>Target collateral:</strong> {ethers.formatUnits(targetPosition.collateral, decimalsCol)} {symbolCol}</p>
-                <p><strong>Target debt:</strong> {ethers.formatUnits(targetPosition.debt, decimalsDebt)} {symbolDebt}</p>
+                <p><strong>Target collateral:</strong> {formatWei(targetPosition?.collateral, decimalsCol)} {symbolCol}</p>
+                <p><strong>Target debt:</strong> {formatWei(targetPosition?.debt, decimalsDebt)} {symbolDebt}</p>
                 <p><strong>Health factor:</strong> {hfDisplay}</p>
                 <p className={targetLiquidatable ? 'danger' : 'success'}>
                   {targetLiquidatable ? 'Liquidatable' : 'Not liquidatable'}
@@ -146,7 +154,7 @@ export default function LiquidatePage() {
                 <button
                   type="button"
                   className="submit-btn"
-                  disabled={loading || !targetLiquidatable || myDebtBalance < targetPosition.debt}
+                  disabled={loading || !targetLiquidatable || myDebtBalance < (targetPosition?.debt ?? 0n)}
                   onClick={handleLiquidate}
                 >
                   {loading ? 'Liquidating...' : 'Liquidate'}
