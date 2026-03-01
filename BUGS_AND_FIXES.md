@@ -36,6 +36,11 @@
 - **问题**：`position.collateral`、`targetPosition.debt` 等未做空值保护，若结构异常可能报错。
 - **修复**：使用 `position?.collateral ?? 0n`、`targetPosition?.debt` 及安全 `formatWei`，避免渲染或计算时报错。
 
+### 7. Layout 使用 Outlet 导致主内容区完全不显示
+
+- **问题**：App 将 `<Routes>` 作为 Layout 的 `children` 传入，但 Layout 内部渲染的是 `<Outlet />` 而非 `{children}`。Outlet 仅在嵌套路由（父 Route 包子 Route）时才会渲染子路由；当前并未使用嵌套结构，因此 Outlet 没有可渲染内容，Dashboard、Borrow 等页面全部不显示，主内容区一片空白（连 “Connect MetaMask first.” 都没有）。
+- **修复**：Layout 改为渲染 `{children}`（即传入的 `<Routes>`），去掉 `<Outlet />`。由 Routes 根据当前路径渲染对应页面（Dashboard、Borrow 等），主内容区恢复正常显示。同时保留 ErrorBoundary 包裹，便于后续捕获子组件抛错。
+
 ---
 
 ## 建议注意（未改逻辑）
