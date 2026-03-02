@@ -70,10 +70,15 @@ async function main() {
   await borrowToken.connect(deployer).transfer(poolAddress, seedAmount);
   console.log('Seeded pool with 1,000,000 BUSD');
 
-  // Mint some collateral and borrow tokens to deployer for testing
-  await collateralToken.mint(deployer.address, hre.ethers.parseUnits('100', 18));
-  await borrowToken.mint(deployer.address, hre.ethers.parseUnits('10000', 18));
-  console.log('Minted test tokens to deployer');
+  // Give every test account initial collateral and borrow token (for easy testing)
+  const signers = await hre.ethers.getSigners();
+  const collateralPerUser = hre.ethers.parseUnits('100', 18);
+  const borrowPerUser = hre.ethers.parseUnits('10000', 18);
+  for (const account of signers) {
+    await collateralToken.mint(account.address, collateralPerUser);
+    await borrowToken.mint(account.address, borrowPerUser);
+  }
+  console.log(`Minted initial collateral (100 COL) and borrow (10,000 BUSD) to ${signers.length} accounts`);
 
   console.log('\n--- Summary ---');
   console.log('VITE_LENDING_POOL=' + poolAddress);

@@ -8,6 +8,7 @@ import {
   getTokenBalance,
   getTokenInfo,
   getPrice,
+  faucetToken,
   addresses,
 } from '../utils/web3';
 import { useWallet } from '../context/WalletContext';
@@ -25,6 +26,8 @@ export default function Dashboard() {
   const [collateralPrice, setCollateralPrice] = useState(null);
   const [borrowPrice, setBorrowPrice] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [faucetLoading, setFaucetLoading] = useState(false);
+  const [faucetError, setFaucetError] = useState(null);
 
   useEffect(() => {
     if (!user || !addresses.lendingPool) {
@@ -93,6 +96,28 @@ export default function Dashboard() {
   } catch {}
   const isLiquidatable = healthFactor != null && typeof healthFactor === 'bigint' && healthFactor < ethers.parseUnits('1', 18);
 
+  const handleFaucet = async () => {
+    if (!addresses.collateralAsset || !addresses.borrowAsset) return;
+    setFaucetError(null);
+    setFaucetLoading(true);
+    try {
+      const colAmount = ethers.parseUnits('100', collateralInfo.decimals);
+      const borAmount = ethers.parseUnits('10000', borrowInfo.decimals);
+      await faucetToken(addresses.collateralAsset, colAmount);
+      await faucetToken(addresses.borrowAsset, borAmount);
+      const [colBal, borBal] = await Promise.all([
+        getTokenBalance(addresses.collateralAsset, user),
+        getTokenBalance(addresses.borrowAsset, user),
+      ]);
+      setCollateralBalance(colBal);
+      setBorrowBalance(borBal);
+    } catch (e) {
+      setFaucetError(e?.message || 'Faucet failed');
+    } finally {
+      setFaucetLoading(false);
+    }
+  };
+
   if (loading) {
     return <div className="page"><p className="muted">Loading...</p></div>;
   }
@@ -125,6 +150,11 @@ export default function Dashboard() {
             <h3>Wallet balances</h3>
             <p><strong>{collateralInfo.symbol}:</strong> {formatToken(collateralBalance, collateralInfo.decimals)}</p>
             <p><strong>{borrowInfo.symbol}:</strong> {formatToken(borrowBalance, borrowInfo.decimals)}</p>
+            <p className="muted">测试用：点击下方按钮可领取 100 {collateralInfo.symbol} 和 10,000 {borrowInfo.symbol}。</p>
+            <button type="button" className="btn" onClick={handleFaucet} disabled={faucetLoading}>
+              {faucetLoading ? '领取中...' : '领取测试代币'}
+            </button>
+            {faucetError && <p className="danger">{faucetError}</p>}
           </section>
           <div className="actions">
             <Link to="/deposit" className="btn btn-primary">Deposit</Link>

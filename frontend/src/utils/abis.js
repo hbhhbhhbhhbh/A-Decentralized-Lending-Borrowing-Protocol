@@ -14,6 +14,7 @@ export const LENDING_POOL_ABI = [
   'function getUtilizationRate() view returns (uint256)',
   'function getFlashLoanFee(uint256 amount) view returns (uint256)',
   'function isLiquidatable(address user) view returns (bool)',
+  'function getMaxBorrow(address user) view returns (uint256)',
   'function collateralAsset() view returns (address)',
   'function borrowAsset() view returns (address)',
   'function totalCollateral() view returns (uint256)',
@@ -34,6 +35,7 @@ export const ERC20_ABI = [
   'function allowance(address owner, address spender) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
   'function transferFrom(address from, address to, uint256 amount) returns (bool)',
+  'function faucet(uint256 amount)',
 ];
 
 export const PRICE_ORACLE_ABI = [

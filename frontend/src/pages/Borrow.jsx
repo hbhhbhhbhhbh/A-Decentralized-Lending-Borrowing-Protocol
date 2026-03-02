@@ -5,6 +5,7 @@ import {
   getUserPosition,
   getHealthFactor,
   getTokenInfo,
+  getMaxBorrow,
   borrow,
 } from '../utils/web3';
 import { useWallet } from '../context/WalletContext';
@@ -15,6 +16,7 @@ export default function BorrowPage() {
   const [amount, setAmount] = useState('');
   const [position, setPosition] = useState({ collateral: 0n, debt: 0n });
   const [healthFactor, setHealthFactor] = useState(null);
+  const [maxBorrowWei, setMaxBorrowWei] = useState(0n);
   const [decimals, setDecimals] = useState(18);
   const [symbol, setSymbol] = useState('USD');
   const [tx, setTx] = useState({ status: '', hash: '' });
@@ -24,9 +26,15 @@ export default function BorrowPage() {
 
   useEffect(() => {
     if (!user || !asset) return;
-    getUserPosition(user).then(setPosition);
-    getHealthFactor(user).then(setHealthFactor);
-    getTokenInfo(asset).then((info) => {
+    Promise.all([
+      getUserPosition(user),
+      getHealthFactor(user),
+      getMaxBorrow(user),
+      getTokenInfo(asset),
+    ]).then(([pos, hf, maxBorrow, info]) => {
+      setPosition(pos);
+      setHealthFactor(hf);
+      setMaxBorrowWei(maxBorrow);
       setDecimals(info.decimals);
       setSymbol(info.symbol);
     });
@@ -35,16 +43,21 @@ export default function BorrowPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!amount || !user || !asset) return;
+    const amountWei = ethers.parseUnits(amount, decimals);
+    if (amountWei > maxBorrowWei) {
+      setTx({ status: 'error', hash: `超过最大可借金额 ${formatWei(maxBorrowWei, decimals)} ${symbol}` });
+      return;
+    }
     setLoading(true);
     setTx({ status: '', hash: '' });
     try {
-      const amountWei = ethers.parseUnits(amount, decimals);
       const receipt = await borrow(asset, amountWei);
       setTx({ status: 'success', hash: receipt.hash });
       setAmount('');
-      const [pos, hf] = await Promise.all([getUserPosition(user), getHealthFactor(user)]);
+      const [pos, hf, maxBorrow] = await Promise.all([getUserPosition(user), getHealthFactor(user), getMaxBorrow(user)]);
       setPosition(pos);
       setHealthFactor(hf);
+      setMaxBorrowWei(maxBorrow);
     } catch (err) {
       setTx({ status: 'error', hash: err.message || 'Transaction failed' });
     } finally {
@@ -67,6 +80,11 @@ export default function BorrowPage() {
     }
   };
 
+  let amountExceedsMax = false;
+  try {
+    if (amount && maxBorrowWei !== undefined) amountExceedsMax = ethers.parseUnits(amount, decimals) > maxBorrowWei;
+  } catch {}
+
   return (
     <div className="page">
       <h1>Borrow</h1>
@@ -77,6 +95,7 @@ export default function BorrowPage() {
           <p><strong>Your collateral:</strong> {formatWei(position?.collateral, 18)} (collateral asset)</p>
           <p><strong>Current debt:</strong> {formatWei(position?.debt, decimals)} {symbol}</p>
           <p><strong>Health factor:</strong> {hfDisplay}</p>
+          <p><strong>Max borrow:</strong> {formatWei(maxBorrowWei, decimals)} {symbol}</p>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Amount to borrow ({symbol})</label>
@@ -86,8 +105,14 @@ export default function BorrowPage() {
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
               />
+              {maxBorrowWei > 0n && (
+                <button type="button" className="btn-link" onClick={() => setAmount(formatWei(maxBorrowWei, decimals))} style={{ marginLeft: '0.5rem' }}>
+                  Max
+                </button>
+              )}
             </div>
-            <button type="submit" className="submit-btn" disabled={loading || !amount}>
+            {amountExceedsMax && <p className="danger">借款金额超过最大可借 {formatWei(maxBorrowWei, decimals)} {symbol}</p>}
+            <button type="submit" className="submit-btn" disabled={loading || !amount || amountExceedsMax}>
               {loading ? 'Borrowing...' : 'Borrow'}
             </button>
           </form>

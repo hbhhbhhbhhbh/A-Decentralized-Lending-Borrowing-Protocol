@@ -138,6 +138,14 @@ export async function approveToken(tokenAddress, spender, amountWei) {
   return tx.wait();
 }
 
+/** Faucet: mint test tokens to msg.sender (MockERC20 only, for testing). */
+export async function faucetToken(tokenAddress, amountWei) {
+  const contract = getERC20Contract(tokenAddress, true);
+  if (!contract) throw new Error('Token not configured');
+  const tx = await contract.faucet(amountWei);
+  return tx.wait();
+}
+
 // --- Read helpers ---
 
 export async function getUserPosition(userAddress) {
@@ -189,6 +197,16 @@ export async function isLiquidatable(userAddress) {
     return await contract.isLiquidatable(userAddress);
   } catch {
     return false;
+  }
+}
+
+export async function getMaxBorrow(userAddress) {
+  const contract = getLendingPoolContract(false);
+  if (!contract) return 0n;
+  try {
+    return await contract.getMaxBorrow(userAddress);
+  } catch {
+    return 0n;
   }
 }
 
