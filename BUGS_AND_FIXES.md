@@ -54,3 +54,39 @@
 ## 合约侧（未改）
 
 - 合约已使用 ReentrancyGuard、SafeERC20 和 checks-effects-interactions，未发现明显漏洞；若有审计需求可再单独做安全审计。
+
+---
+
+## 今日改动总结（2025-03-01）
+
+### 1. 池子与凭证：LP → PCOL / PBUSD
+
+- **设计**：单一池内只有 COL 和 BUSD。存入 COL 获得 PCOL、存入 BUSD 获得 PBUSD（1:1 凭证）；取款时用 P 币 1:1 从池中取回对应币。P 币不加入池子，仅代表“你在池子里存了多少对应币”。
+- **合约**：新增 `ReceiptToken.sol`（通用 P 币）、`PCOLBUSDPool.sol`。提供 `depositCOL`/`depositBUSD`、`withdrawCOL`/`withdrawBUSD`、抵押/借还/清算（PCOL↔BUSD、PBUSD↔COL 两套）。
+- **抵押语义**：抵押 = 将 P 币转入合约锁定，**不增加**池内金额，仅代表 lock 住无法使用。解除抵押 = P 币转回用户。清算 = 清算人还债务，获得该仓位锁定的 P 币（非池内 COL/BUSD）。
+
+### 2. 前端全面改为 PCOL/PBUSD
+
+- **Utils**：`addresses.js`、`abis.js`、`web3.js` 改为 PCOLBUSDPool 接口（depositCOL/BUSD、withdraw、depositCollateralPCOL/PBUSD、borrowBUSD/COL、repay、liquidateBUSD/COL、getUserPositionPCOL/PBUSD 等）。`WalletContext` 中 `refreshUser` 调用 `syncSigner()`。
+- **页面**：Deposit（存 COL 得 PCOL / 存 BUSD 得 PBUSD）、Withdraw（PCOL 取 COL / PBUSD 取 BUSD）、Borrow（抵押 PCOL 借 BUSD / 抵押 PBUSD 借 COL，含锁定/解锁/借入）、Repay（还 BUSD/COL）、Liquidate（清算 PCOL 仓位得 PCOL / 清算 PBUSD 仓位得 PBUSD）、Dashboard、Analytics。
+- **Borrow 显示**：健康系数、清算阈值/奖励、抵押价值(USD)/债务价值(USD)、抵押物最高可借、当前 COL/BUSD 价格（池内）。PCOL 模式下锁定后不显示的问题：修复为将 `getUserPositionPCOL` 返回值统一为 `{ col, debt }` 再渲染。
+
+### 3. Flash Loan 使用方式
+
+- **正确流程**：用户调用 **Receiver 合约**的 `requestFlashLoan(asset, amount)`，而非直接调池子 `flashLoan`。Receiver 会先向用户收取手续费（需先对 Receiver 授权该资产），再向池子发起 flash loan 并在同一笔交易内归还本金+手续费。
+- **前端**：Flash Loan 页改为调用 `requestFlashLoanViaReceiver`，并在发起前对 **Receiver** 授权手续费；文案说明“只需持有 ≥ 手续费的资产”。
+
+### 4. 利率模型与按块计息
+
+- **合约**：引入基于**利用率 U** 的动态利率：`ratePerBlock = baseRate + multiplier * U`（BUSD/COL 各一套）。债务用 **scaled + borrowIndex** 存储，每 block 复利更新 index；borrow/repay/liquidate 前先 `_accrueBUSD`/`_accrueCOL`。新增 `getCurrentDebtBUSD`/`getCurrentDebtCOL`、`getUtilizationBUSD`/`getUtilizationCOL`、`getBorrowAPYBUSD`/`getBorrowAPYCOL`、`getSupplyAPYBUSD`/`getSupplyAPYCOL` 等。
+- **健康因子与最大可借**：统一改为使用“含利息的当前债务”`getCurrentDebt*` 计算。
+
+### 5. Dashboard 展示
+
+- **Pool 层**：Utilization（BUSD/COL）、Supply APY、Borrow APY。
+- **用户层**：Total Collateral (USD)、Total Debt (USD)、Health Factor（PCOL→BUSD、PBUSD→COL，<1 标红 liquidatable）、钱包余额、各仓位（锁定 P 币、当前债务、Borrow APY）。
+
+### 6. 部署与配置
+
+- **部署脚本**：`scripts/deploy-pcolbusd.js` 部署 COL/BUSD Mock、GovernanceToken、PCOLBUSDPool、FlashLoanReceiverExample，并输出 `VITE_PCOL_TOKEN`、`VITE_PBUSD_TOKEN` 等供前端 `.env` 使用。
+- **前端 .env**：需配置 `VITE_LENDING_POOL`、`VITE_PCOL_TOKEN`、`VITE_PBUSD_TOKEN`、`VITE_FLASH_LOAN_RECEIVER` 等；`.env.example` 已更新为 PCOL/PBUSD 示例。

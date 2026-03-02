@@ -2,169 +2,111 @@ import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import {
   addresses,
-  getLendingPoolContract,
-  getHealthFactor,
-  getUserPosition,
   getTokenBalance,
   getTokenInfo,
   approveToken,
-  liquidate,
+  liquidateBUSD,
+  liquidateCOL,
+  getPoolContractReadOnly,
+  getTokenAllowance,
 } from '../utils/web3';
 import { useWallet } from '../context/WalletContext';
 import './Page.css';
 
-export default function LiquidatePage() {
+function formatWei(wei, decimals) {
+  if (wei === undefined || wei === null) return '0';
+  try {
+    return typeof wei === 'bigint' ? ethers.formatUnits(wei, decimals ?? 18) : String(wei);
+  } catch {
+    return '0';
+  }
+}
+
+export default function Liquidate() {
   const { user } = useWallet();
-  const [targetAddress, setTargetAddress] = useState('');
-  const [targetPosition, setTargetPosition] = useState({ collateral: 0n, debt: 0n });
-  const [targetLiquidatable, setTargetLiquidatable] = useState(false);
-  const [targetHf, setTargetHf] = useState(null);
-  const [myDebtBalance, setMyDebtBalance] = useState(0n);
-  const [decimalsCol, setDecimalsCol] = useState(18);
-  const [decimalsDebt, setDecimalsDebt] = useState(18);
-  const [symbolCol, setSymbolCol] = useState('COL');
-  const [symbolDebt, setSymbolDebt] = useState('USD');
+  const [mode, setMode] = useState('BUSD'); // liquidate PCOL position (repay BUSD) | 'COL' (repay COL)
+  const [targetUser, setTargetUser] = useState('');
+  const [decimals, setDecimals] = useState(18);
   const [tx, setTx] = useState({ status: '', hash: '' });
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!addresses.collateralAsset || !addresses.borrowAsset) return;
-    getTokenInfo(addresses.collateralAsset).then((i) => {
-      setDecimalsCol(i.decimals);
-      setSymbolCol(i.symbol);
-    });
-    getTokenInfo(addresses.borrowAsset).then((i) => {
-      setDecimalsDebt(i.decimals);
-      setSymbolDebt(i.symbol);
-    });
-  }, []);
+  const pool = addresses.lendingPool;
+  const col = addresses.collateralAsset;
+  const busd = addresses.borrowAsset;
+  const repayAsset = mode === 'BUSD' ? busd : col;
 
   useEffect(() => {
-    if (!targetAddress || !ethers.isAddress(targetAddress)) {
-      setTargetPosition({ collateral: 0n, debt: 0n });
-      setTargetLiquidatable(false);
-      setTargetHf(null);
-      return;
-    }
-    const pool = getLendingPoolContract(false);
-    const liqPromise = pool ? pool.isLiquidatable(targetAddress) : Promise.resolve(false);
-    Promise.all([
-      getUserPosition(targetAddress),
-      getHealthFactor(targetAddress),
-      liqPromise,
-    ]).then(([pos, hf, liq]) => {
-      setTargetPosition(pos);
-      setTargetHf(hf);
-      setTargetLiquidatable(liq ?? false);
-    });
-  }, [targetAddress]);
+    if (!col || !busd) return;
+    getTokenInfo(busd).then((d) => setDecimals(d.decimals));
+  }, [col, busd]);
 
-  useEffect(() => {
-    if (!user || !addresses.borrowAsset) return;
-    getTokenBalance(addresses.borrowAsset, user).then(setMyDebtBalance);
-  }, [user]);
-
-  const handleLiquidate = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!targetAddress || !targetLiquidatable || !user) return;
+    if (!targetUser || !user || !pool) return;
     setLoading(true);
     setTx({ status: '', hash: '' });
     try {
-      const receipt = await liquidate(
-        addresses.collateralAsset,
-        addresses.borrowAsset,
-        targetAddress
-      );
+      const contract = getPoolContractReadOnly();
+      let debtWei = 0n;
+      if (contract) {
+        if (mode === 'BUSD') {
+          const pos = await contract.getUserPositionPCOL(targetUser);
+          debtWei = pos[1];
+        } else {
+          const pos = await contract.getUserPositionPBUSD(targetUser);
+          debtWei = pos[1];
+        }
+      }
+      if (debtWei > 0n) {
+        const allow = await getTokenAllowance(repayAsset, user, pool);
+        if (allow < debtWei) await approveToken(repayAsset, pool, ethers.MaxUint256);
+      }
+      const receipt = mode === 'BUSD' ? await liquidateBUSD(targetUser) : await liquidateCOL(targetUser);
       setTx({ status: 'success', hash: receipt.hash });
-      const pool2 = getLendingPoolContract(false);
-      const liqPromise2 = pool2 ? pool2.isLiquidatable(targetAddress) : Promise.resolve(false);
-      const [pos, hf, liq] = await Promise.all([
-        getUserPosition(targetAddress),
-        getHealthFactor(targetAddress),
-        liqPromise2,
-      ]);
-      setTargetPosition(pos);
-      setTargetHf(hf);
-      setTargetLiquidatable(liq ?? false);
-      getTokenBalance(addresses.borrowAsset, user).then(setMyDebtBalance);
+      setTargetUser('');
     } catch (err) {
-      setTx({ status: 'error', hash: err.message || 'Transaction failed' });
+      setTx({ status: 'error', hash: err?.message || 'Transaction failed' });
     } finally {
       setLoading(false);
     }
   };
 
-  let hfDisplay = '—';
-  try {
-    if (targetHf != null && typeof targetHf === 'bigint') {
-      hfDisplay = Number(ethers.formatUnits(targetHf, 18)).toFixed(2);
-    }
-  } catch {}
-  const formatWei = (wei, d) => {
-    if (wei === undefined || wei === null) return '0';
-    try {
-      return typeof wei === 'bigint' ? ethers.formatUnits(wei, d ?? 18) : String(wei);
-    } catch {
-      return '0';
-    }
-  };
-  const needsApproval = (targetPosition?.debt ?? 0n) > 0n;
-  const handleApprove = async () => {
-    if (!user) return;
-    await approveToken(addresses.borrowAsset, addresses.lendingPool, ethers.MaxUint256);
-    const bal = await getTokenBalance(addresses.borrowAsset, user);
-    setMyDebtBalance(bal);
-  };
-
   return (
     <div className="page">
-      <h1>Liquidate</h1>
-      <p className="muted">Liquidate unhealthy positions (health factor &lt; 1). You repay their debt and receive collateral at a 10% bonus.</p>
-      {!user && <p className="muted">Connect MetaMask first.</p>}
+      <h1>Liquidate 清算</h1>
+      <p className="muted">健康因子 &lt; 1 的仓位可被清算。偿还其债务并获取抵押物（含奖励）。</p>
+      {!user && <p className="muted">请先连接 MetaMask。</p>}
       {user && (
         <div className="card">
-          <p><strong>Your {symbolDebt} balance:</strong> {formatWei(myDebtBalance, decimalsDebt)} (need this to repay target&apos;s debt)</p>
-          <form onSubmit={(e) => { e.preventDefault(); }}>
+          <div className="form-group">
+            <label>清算类型</label>
+            <select
+              value={mode}
+              onChange={(e) => setMode(e.target.value)}
+              style={{ maxWidth: 320, padding: '0.6rem 0.75rem', borderRadius: 8 }}
+            >
+              <option value="BUSD">清算 PCOL 仓位（你还 BUSD，得 PCOL）</option>
+              <option value="COL">清算 PBUSD 仓位（你还 COL，得 PBUSD）</option>
+            </select>
+          </div>
+          <p><strong>需用资产:</strong> {mode === 'BUSD' ? 'BUSD' : 'COL'}</p>
+          <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Target address (unhealthy position)</label>
+              <label>被清算地址</label>
               <input
                 type="text"
-                value={targetAddress}
-                onChange={(e) => setTargetAddress(e.target.value)}
+                value={targetUser}
+                onChange={(e) => setTargetUser(e.target.value)}
                 placeholder="0x..."
               />
             </div>
+            <button type="submit" className="submit-btn" disabled={loading || !targetUser}>
+              {loading ? '清算中...' : '执行清算'}
+            </button>
           </form>
-          {targetAddress && ethers.isAddress(targetAddress) && (
-            <div className="list-item" style={{ marginTop: '1rem' }}>
-              <div>
-                <p><strong>Target collateral:</strong> {formatWei(targetPosition?.collateral, decimalsCol)} {symbolCol}</p>
-                <p><strong>Target debt:</strong> {formatWei(targetPosition?.debt, decimalsDebt)} {symbolDebt}</p>
-                <p><strong>Health factor:</strong> {hfDisplay}</p>
-                <p className={targetLiquidatable ? 'danger' : 'success'}>
-                  {targetLiquidatable ? 'Liquidatable' : 'Not liquidatable'}
-                </p>
-              </div>
-              <div>
-                {needsApproval && (
-                  <button type="button" className="btn" onClick={handleApprove} style={{ marginRight: 8 }}>
-                    Approve {symbolDebt}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="submit-btn"
-                  disabled={loading || !targetLiquidatable || myDebtBalance < (targetPosition?.debt ?? 0n)}
-                  onClick={handleLiquidate}
-                >
-                  {loading ? 'Liquidating...' : 'Liquidate'}
-                </button>
-              </div>
-            </div>
-          )}
           {tx.status && (
             <p className={tx.status === 'success' ? 'success' : 'danger'} style={{ marginTop: '1rem' }}>
-              {tx.status === 'success' ? `Done. Tx: ${tx.hash}` : tx.hash}
+              {tx.status === 'success' ? `成功。Tx: ${tx.hash}` : tx.hash}
             </p>
           )}
         </div>
