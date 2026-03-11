@@ -44,6 +44,8 @@ export const POOL_ABI = [
   'function getBorrowAPYCOL() view returns (uint256)',
   'function getSupplyAPYBUSD() view returns (uint256)',
   'function getSupplyAPYCOL() view returns (uint256)',
+  'event DepositCollateralPCOL(address indexed user, uint256 amount)',
+  'event DepositCollateralPBUSD(address indexed user, uint256 amount)',
 ];
 
 export const FLASH_RECEIVER_ABI = [

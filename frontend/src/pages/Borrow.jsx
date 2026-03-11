@@ -165,7 +165,14 @@ export default function Borrow() {
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Amount</label>
-              <input type="text" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input type="text" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" style={{ flex: '1 1 200px' }} />
+                {action === 'borrow' && (
+                  <button type="button" className="submit-btn" style={{ marginBottom: 0 }} onClick={() => setAmount(fmt(maxBorrow, dec))}>
+                    最大
+                  </button>
+                )}
+              </div>
             </div>
             <button type="submit" className="submit-btn" disabled={loading || !amount}>
               {loading ? '...' : action === 'borrow' ? 'Borrow ' + borrowAsset : action === 'deposit' ? 'Lock ' + colLabel : 'Unlock ' + colLabel}

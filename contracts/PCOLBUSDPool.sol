@@ -84,6 +84,7 @@ contract PCOLBUSDPool is ReentrancyGuard {
         rBUSD = IERC20(tokenBUSD).balanceOf(address(this));
     }
 
+    /// @dev 池内 1 COL 的 USD 价格，8 位小数（与 BUSD 1:1 一致）
     function _priceCOLIn8() internal view returns (uint256) {
         (uint256 rCOL, uint256 rBUSD) = _getReserves();
         if (rCOL == 0) return 0;
@@ -92,6 +93,7 @@ contract PCOLBUSDPool is ReentrancyGuard {
         return (rBUSD * 10 ** (PRICE_DECIMALS + dCOL)) / (rCOL * 10 ** dBUSD);
     }
 
+    /// @dev BUSD 固定 1 USD，8 位小数
     function _priceBUSDIn8() internal pure returns (uint256) {
         return 1e8;
     }
@@ -212,7 +214,8 @@ contract PCOLBUSDPool is ReentrancyGuard {
         return baseRatePerBlockCOL + (multiplierPerBlockCOL * u) / 1e18;
     }
 
-    /// @dev APY in 1e18 (e.g. 0.1e18 = 10%). Simple: ratePerBlock * BLOCKS_PER_YEAR.
+    /// @dev APY in 1e18 (e.g. 0.1e18 = 10%). Simple interest: ratePerBlock * BLOCKS_PER_YEAR (same scale as ratePerBlock).
+    ///      Frontend: (apyWei / 1e18) * 100 = percentage.
     function getBorrowAPYBUSD() public view returns (uint256) {
         return getBorrowRatePerBlockBUSD() * BLOCKS_PER_YEAR;
     }
@@ -221,6 +224,7 @@ contract PCOLBUSDPool is ReentrancyGuard {
         return getBorrowRatePerBlockCOL() * BLOCKS_PER_YEAR;
     }
 
+    /// @dev Supply APY = borrow APY * utilization * (1 - reserveFactor). In 1e18.
     function getSupplyAPYBUSD() public view returns (uint256) {
         uint256 u = getUtilizationBUSD();
         uint256 borrowAPY = getBorrowAPYBUSD();
@@ -306,6 +310,7 @@ contract PCOLBUSDPool is ReentrancyGuard {
         scaledDebtBUSD[msg.sender] += scaled;
         totalScaledDebtBUSD += scaled;
         require(getHealthFactorPCOL(msg.sender) >= 1e18, "PCOLBUSDPool: HF");
+        // 借出的 BUSD 转给用户，离开池子
         IERC20(tokenBUSD).safeTransfer(msg.sender, amount);
         if (rewardPerBorrow > 0) governanceToken.mintReward(msg.sender, rewardPerBorrow);
         emit BorrowBUSD(msg.sender, amount);
@@ -382,6 +387,7 @@ contract PCOLBUSDPool is ReentrancyGuard {
         scaledDebtCOL[msg.sender] += scaled;
         totalScaledDebtCOL += scaled;
         require(getHealthFactorPBUSD(msg.sender) >= 1e18, "PCOLBUSDPool: HF");
+        // 借出的 COL 转给用户，离开池子
         IERC20(tokenCOL).safeTransfer(msg.sender, amount);
         if (rewardPerBorrow > 0) governanceToken.mintReward(msg.sender, rewardPerBorrow);
         emit BorrowCOL(msg.sender, amount);
@@ -440,26 +446,38 @@ contract PCOLBUSDPool is ReentrancyGuard {
         return (lockedPBUSD[user], getCurrentDebtCOL(user));
     }
 
+    /// @dev 考虑借款后池子变化对价格的影响：借 BUSD 会减少 pool BUSD，COL 价格下降，抵押价值下降。求满足借后 HF >= 1e18 的最大 x。
     function getMaxBorrowBUSD(address user) external view returns (uint256) {
-        if (lockedPCOL[user] == 0) return 0;
-        uint256 colValue8 = _collateralValuePCOLIn8(user);
-        uint256 debtValue8 = getCurrentDebtBUSD(user) * _priceBUSDIn8();
-        uint256 maxDebtValue8 = (colValue8 * liquidationThreshold) / BPS;
-        if (maxDebtValue8 <= debtValue8) return 0;
-        uint256 maxAdditional = (maxDebtValue8 - debtValue8) / _priceBUSDIn8();
-        uint256 available = IERC20(tokenBUSD).balanceOf(address(this));
-        return maxAdditional > available ? available : maxAdditional;
+        uint256 L = lockedPCOL[user];
+        if (L == 0) return 0;
+        uint256 P = IERC20(tokenBUSD).balanceOf(address(this));
+        uint256 Q = IERC20(tokenCOL).balanceOf(address(this));
+        if (Q == 0) return 0;
+        uint256 D = getCurrentDebtBUSD(user);
+        uint256 T = liquidationThreshold;
+        uint256 num = L * P * T;
+        uint256 denomCol = D * Q * BPS;
+        if (num <= denomCol) return 0;
+        uint256 x = (num - denomCol) / (L * T + Q * BPS);
+        uint256 available = P;
+        return x > available ? available : x;
     }
 
+    /// @dev 考虑借款后池子变化：借 COL 会减少 pool COL，COL 价格上升，债务价值上升。求满足借后 HF >= 1e18 的最大 x。
     function getMaxBorrowCOL(address user) external view returns (uint256) {
-        if (lockedPBUSD[user] == 0) return 0;
-        uint256 colValue8 = _collateralValuePBUSDIn8(user);
-        uint256 debtValue8 = getCurrentDebtCOL(user) * _priceCOLIn8();
-        uint256 maxDebtValue8 = (colValue8 * liquidationThreshold) / BPS;
-        if (maxDebtValue8 <= debtValue8) return 0;
-        uint256 maxAdditional = (maxDebtValue8 - debtValue8) / _priceCOLIn8();
-        uint256 available = IERC20(tokenCOL).balanceOf(address(this));
-        return maxAdditional > available ? available : maxAdditional;
+        uint256 L = lockedPBUSD[user];
+        if (L == 0) return 0;
+        uint256 P = IERC20(tokenBUSD).balanceOf(address(this));
+        uint256 Q = IERC20(tokenCOL).balanceOf(address(this));
+        if (Q == 0) return 0;
+        uint256 D = getCurrentDebtCOL(user);
+        uint256 T = liquidationThreshold;
+        uint256 num = L * T * Q;
+        uint256 denomCol = D * P * BPS;
+        if (num <= denomCol) return 0;
+        uint256 x = (num - denomCol) / (L * T + P * BPS);
+        uint256 available = Q;
+        return x > available ? available : x;
     }
 
     function isLiquidatablePCOL(address user) external view returns (bool) {
