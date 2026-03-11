@@ -46,7 +46,7 @@ async function main() {
   console.log('FlashLoanReceiverExample:', receiverAddr);
 
   const seedCol = hre.ethers.parseUnits('500', 18);
-  const seedBusd = hre.ethers.parseUnits('1000000', 18);
+  const seedBusd = hre.ethers.parseUnits('10000', 18);
   await col.mint(deployer.address, seedCol);
   await busd.mint(deployer.address, seedBusd);
   await col.approve(poolAddr, seedCol);
@@ -56,7 +56,7 @@ async function main() {
   console.log('Seeded pool: 500 COL, 1,000,000 BUSD');
 
   const signers = await hre.ethers.getSigners();
-  const perCol = hre.ethers.parseUnits('10000', 18);
+  const perCol = hre.ethers.parseUnits('10000000000', 18);
   const perBusd = hre.ethers.parseUnits('10000000', 18);
   for (const a of signers) {
     await col.mint(a.address, perCol);

@@ -74,7 +74,7 @@ export default function Deposit() {
   return (
     <div className="page">
       <h1>Deposit 存入</h1>
-      <p className="muted">存入 COL 获得 PCOL，存入 BUSD 获得 PBUSD。P 币为池内凭证，取款时 1:1 取回。</p>
+      <p className="muted">存入 COL 获得 PCOL，存入 BUSD 获得 PBUSD。P 币为池内凭证，取款时 1:1 取回。存入时收取 0.05% 管理费（留在池内），实际获得凭证 = 存入量 × 99.95%。</p>
       {!user && <p className="muted">请先连接 MetaMask。</p>}
       {user && (
         <div className="card">

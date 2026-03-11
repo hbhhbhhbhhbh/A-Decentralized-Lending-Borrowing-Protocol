@@ -299,12 +299,16 @@ export async function getPriceBUSDIn8() {
 
 export async function getPoolParams() {
   const c = getPoolContractReadOnly();
-  if (!c) return { liquidationThreshold: 8000n, liquidationBonus: 1000n };
+  if (!c) return { liquidationThresholdPCOL: 6500n, liquidationThresholdPBUSD: 8500n, liquidationBonus: 1000n };
   try {
-    const [lt, lb] = await Promise.all([c.liquidationThreshold(), c.liquidationBonus()]);
-    return { liquidationThreshold: lt, liquidationBonus: lb };
+    const [ltPCOL, ltPBUSD, lb] = await Promise.all([
+      c.liquidationThresholdPCOL(),
+      c.liquidationThresholdPBUSD(),
+      c.liquidationBonus(),
+    ]);
+    return { liquidationThresholdPCOL: ltPCOL, liquidationThresholdPBUSD: ltPBUSD, liquidationBonus: lb };
   } catch {
-    return { liquidationThreshold: 8000n, liquidationBonus: 1000n };
+    return { liquidationThresholdPCOL: 6500n, liquidationThresholdPBUSD: 8500n, liquidationBonus: 1000n };
   }
 }
 
@@ -359,25 +363,36 @@ export async function getBorrowRatePerBlockCOL() {
   try { return await c.getBorrowRatePerBlockCOL(); } catch { return 0n; }
 }
 
-/** 获取利率模型参数（用于测试页模拟） */
+/** 获取利率模型参数（拐点模型：U_opt, slope1, slope2，用于测试页模拟） */
 export async function getRateParams() {
   const c = getPoolContractReadOnly();
   if (!c) return null;
   try {
-    const [bBase, bMult, bRes, cBase, cMult, cRes] = await Promise.all([
+    const [
+      bBase, bS1, bS2, bOpt, bRes,
+      cBase, cS1, cS2, cOpt, cRes,
+    ] = await Promise.all([
       c.baseRatePerBlockBUSD(),
-      c.multiplierPerBlockBUSD(),
+      c.slope1PerBlockBUSD(),
+      c.slope2PerBlockBUSD(),
+      c.optimalUtilizationBUSD(),
       c.reserveFactorBpsBUSD(),
       c.baseRatePerBlockCOL(),
-      c.multiplierPerBlockCOL(),
+      c.slope1PerBlockCOL(),
+      c.slope2PerBlockCOL(),
+      c.optimalUtilizationCOL(),
       c.reserveFactorBpsCOL(),
     ]);
     return {
       baseRatePerBlockBUSD: bBase,
-      multiplierPerBlockBUSD: bMult,
+      slope1PerBlockBUSD: bS1,
+      slope2PerBlockBUSD: bS2,
+      optimalUtilizationBUSD: bOpt,
       reserveFactorBpsBUSD: bRes,
       baseRatePerBlockCOL: cBase,
-      multiplierPerBlockCOL: cMult,
+      slope1PerBlockCOL: cS1,
+      slope2PerBlockCOL: cS2,
+      optimalUtilizationCOL: cOpt,
       reserveFactorBpsCOL: cRes,
     };
   } catch {

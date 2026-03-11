@@ -44,7 +44,7 @@ export default function Borrow() {
   const [healthFactor, setHealthFactor] = useState(null);
   const [priceCOL, setPriceCOL] = useState(0n);
   const [priceBUSD, setPriceBUSD] = useState(0n);
-  const [poolParams, setPoolParams] = useState({ liquidationThreshold: 8000n, liquidationBonus: 1000n });
+  const [poolParams, setPoolParams] = useState({ liquidationThresholdPCOL: 6500n, liquidationThresholdPBUSD: 8500n, liquidationBonus: 1000n });
   const [dec, setDec] = useState(18);
   const [tx, setTx] = useState({ status: '', hash: '' });
   const [loading, setLoading] = useState(false);
@@ -122,7 +122,9 @@ export default function Borrow() {
   const colLabel = mode === 'PCOL' ? 'PCOL' : 'PBUSD';
   const priceColUsd = priceCOL > 0n ? Number(priceCOL) / 1e8 : 0;
   const priceBusdUsd = priceBUSD > 0n ? Number(priceBUSD) / 1e8 : 1;
-  const lt = Number(poolParams.liquidationThreshold ?? 8000n) / 100;
+  const ltPCOL = Number(poolParams.liquidationThresholdPCOL ?? 6500n) / 100;
+  const ltPBUSD = Number(poolParams.liquidationThresholdPBUSD ?? 8500n) / 100;
+  const lt = mode === 'PCOL' ? ltPCOL : ltPBUSD;
   const lb = Number(poolParams.liquidationBonus ?? 1000n) / 100;
   const MAX_UINT = 115792089237316195423570985008687907853269984665640564039457584007913129639935n;
   const hfNum = healthFactor != null && healthFactor < MAX_UINT
@@ -141,7 +143,7 @@ export default function Borrow() {
           <h3 style={{ marginTop: 0 }}>价格 (池内)</h3>
           <p><strong>COL:</strong> ${priceColUsd.toFixed(4)} &nbsp; <strong>BUSD:</strong> ${priceBusdUsd.toFixed(4)}</p>
           <h3>参数</h3>
-          <p><strong>清算阈值:</strong> {lt}% &nbsp; <strong>清算奖励:</strong> {lb}%</p>
+          <p><strong>清算阈值:</strong> PCOL→BUSD {ltPCOL}% &nbsp; PBUSD→COL {ltPBUSD}% &nbsp; <strong>清算奖励:</strong> {lb}%</p>
           <h3>当前仓位</h3>
           <p><strong>持有 {colLabel}:</strong> {fmt(balance, dec)} &nbsp; <strong>已锁定:</strong> {fmt(position.col, dec)} &nbsp; <strong>债务 {borrowAsset}:</strong> {fmt(position.debt, dec)}</p>
           <p><strong>抵押价值 (USD):</strong> ${colValueUsd.toFixed(2)} &nbsp; <strong>债务价值 (USD):</strong> ${debtValueUsd.toFixed(2)}</p>
