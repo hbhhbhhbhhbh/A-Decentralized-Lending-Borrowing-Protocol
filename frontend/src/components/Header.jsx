@@ -41,6 +41,7 @@ export default function Header() {
     { to: '/withdraw', label: 'Withdraw' },
     { to: '/liquidate', label: 'Liquidate' },
     { to: '/flash-loan', label: 'Flash Loan' },
+    { to: '/interest-rate-test', label: 'Rate Test' },
     { to: '/analytics', label: 'Analytics' },
   ];
 

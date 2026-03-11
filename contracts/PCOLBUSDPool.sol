@@ -35,11 +35,12 @@ contract PCOLBUSDPool is ReentrancyGuard {
     uint256 public totalScaledDebtBUSD;
     uint256 public totalScaledDebtCOL;
 
-    uint256 public baseRatePerBlockBUSD = 1e15;
-    uint256 public multiplierPerBlockBUSD = 5e16;
+    /// @dev 每 block 利率 1e18 精度。5e10 → ~10.5% APY @ u=0；5e11 斜率 → ~115% @ u=100%
+    uint256 public baseRatePerBlockBUSD = 5e10;
+    uint256 public multiplierPerBlockBUSD = 5e11;
     uint256 public reserveFactorBpsBUSD = 1000;
-    uint256 public baseRatePerBlockCOL = 1e15;
-    uint256 public multiplierPerBlockCOL = 5e16;
+    uint256 public baseRatePerBlockCOL = 5e10;
+    uint256 public multiplierPerBlockCOL = 5e11;
     uint256 public reserveFactorBpsCOL = 1000;
     uint256 public liquidationThreshold = 8000;
     uint256 public liquidationBonus = 1000;
@@ -214,8 +215,8 @@ contract PCOLBUSDPool is ReentrancyGuard {
         return baseRatePerBlockCOL + (multiplierPerBlockCOL * u) / 1e18;
     }
 
-    /// @dev APY in 1e18 (e.g. 0.1e18 = 10%). Simple interest: ratePerBlock * BLOCKS_PER_YEAR (same scale as ratePerBlock).
-    ///      Frontend: (apyWei / 1e18) * 100 = percentage.
+    /// @dev APY 单利年化，合约返回值满足 (apyWei/1e18)*100 = 显示的百分比。例如 0.1e18 → 10%。
+    ///      ratePerBlock 为每 block 利率(1e18)，一年 BLOCKS_PER_YEAR 块，故 APY = ratePerBlock * BLOCKS_PER_YEAR。
     function getBorrowAPYBUSD() public view returns (uint256) {
         return getBorrowRatePerBlockBUSD() * BLOCKS_PER_YEAR;
     }

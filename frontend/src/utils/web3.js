@@ -344,6 +344,47 @@ export async function getSupplyAPYCOL() {
   try { return await c.getSupplyAPYCOL(); } catch { return 0n; }
 }
 
+/** 与合约一致，用于前端利率模拟 */
+export const BLOCKS_PER_YEAR = 2102400;
+
+export async function getBorrowRatePerBlockBUSD() {
+  const c = getPoolContractReadOnly();
+  if (!c) return 0n;
+  try { return await c.getBorrowRatePerBlockBUSD(); } catch { return 0n; }
+}
+
+export async function getBorrowRatePerBlockCOL() {
+  const c = getPoolContractReadOnly();
+  if (!c) return 0n;
+  try { return await c.getBorrowRatePerBlockCOL(); } catch { return 0n; }
+}
+
+/** 获取利率模型参数（用于测试页模拟） */
+export async function getRateParams() {
+  const c = getPoolContractReadOnly();
+  if (!c) return null;
+  try {
+    const [bBase, bMult, bRes, cBase, cMult, cRes] = await Promise.all([
+      c.baseRatePerBlockBUSD(),
+      c.multiplierPerBlockBUSD(),
+      c.reserveFactorBpsBUSD(),
+      c.baseRatePerBlockCOL(),
+      c.multiplierPerBlockCOL(),
+      c.reserveFactorBpsCOL(),
+    ]);
+    return {
+      baseRatePerBlockBUSD: bBase,
+      multiplierPerBlockBUSD: bMult,
+      reserveFactorBpsBUSD: bRes,
+      baseRatePerBlockCOL: cBase,
+      multiplierPerBlockCOL: cMult,
+      reserveFactorBpsCOL: cRes,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function flashLoan(receiverAddress, asset, amountWei, params) {
   const c = getPoolContract();
   if (!c) throw new Error('Wallet not connected');

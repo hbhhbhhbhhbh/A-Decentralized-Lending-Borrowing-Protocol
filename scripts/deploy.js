@@ -56,8 +56,8 @@ async function main() {
   console.log('Seeded pool: 500 COL, 1,000,000 BUSD');
 
   const signers = await hre.ethers.getSigners();
-  const perCol = hre.ethers.parseUnits('100', 18);
-  const perBusd = hre.ethers.parseUnits('10000', 18);
+  const perCol = hre.ethers.parseUnits('10000', 18);
+  const perBusd = hre.ethers.parseUnits('10000000', 18);
   for (const a of signers) {
     await col.mint(a.address, perCol);
     await busd.mint(a.address, perBusd);
