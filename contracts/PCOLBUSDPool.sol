@@ -52,8 +52,10 @@ contract PCOLBUSDPool is ReentrancyGuard {
     uint256 public liquidationThresholdPBUSD = 8500;
     uint256 public liquidationBonus = 1000;
     uint256 public flashLoanFeeBps = 9;
-    /// @dev 存款管理费 0.05%，留在池内
+    /// @dev 存款管理费：池为空时用此固定费率（bps）
     uint256 public depositFeeBps = 5;
+    /// @dev 次线性收费倍数（影响^0.25）：impact 1% 时约收 0.005%，impactFeeMultiplierBps=2。fee = amount * impact^0.25 * impactFeeMultiplierBps / BPS
+    uint256 public impactFeeMultiplierBps = 2;
     uint256 public rewardPerDeposit = 1e18;
     uint256 public rewardPerBorrow = 1e17;
 
@@ -76,6 +78,8 @@ contract PCOLBUSDPool is ReentrancyGuard {
     event LiquidateBUSD(address indexed liquidator, address indexed user, uint256 debtRepaid, uint256 pcolReceived);
     event LiquidateCOL(address indexed liquidator, address indexed user, uint256 debtRepaid, uint256 pbusdReceived);
     event FlashLoan(address indexed receiver, address indexed asset, uint256 amount, uint256 fee);
+    event InjectCOL(address indexed from_, uint256 amount);
+    event InjectBUSD(address indexed from_, uint256 amount);
 
     constructor(address _tokenCOL, address _tokenBUSD, address _governanceToken) {
         require(_tokenCOL != address(0) && _tokenBUSD != address(0) && _governanceToken != address(0), "PCOLBUSDPool: zero");
@@ -268,26 +272,57 @@ contract PCOLBUSDPool is ReentrancyGuard {
         return (borrowAPY * u * (BPS - reserveFactorBpsCOL)) / (BPS * 1e18);
     }
 
-    /// @dev 存入 COL：收取 depositFeeBps（0.05%）管理费留在池内，用户获得 (amount - fee) 的 PCOL。
+    /// @dev 存入 COL 对价格的影响：池 COL 增加，COL 价格下降。impact = amount/(poolCOL+amount)。按影响收费：影响 1% 收存入量 0.05%（20 倍），费留池内。
     function depositCOL(uint256 amount) external nonReentrant {
         require(amount > 0, "PCOLBUSDPool: zero");
         IERC20(tokenCOL).safeTransferFrom(msg.sender, address(this), amount);
-        uint256 fee = (amount * depositFeeBps) / BPS;
+        uint256 poolCOLNow = IERC20(tokenCOL).balanceOf(address(this));
+        uint256 fee = _depositFeeByImpact(amount, poolCOLNow);
         uint256 toMint = amount - fee;
         pcolToken.mint(msg.sender, toMint);
         if (rewardPerDeposit > 0) governanceToken.mintReward(msg.sender, rewardPerDeposit);
         emit DepositCOL(msg.sender, amount, toMint);
     }
 
-    /// @dev 存入 BUSD：收取 0.05% 管理费留在池内，用户获得 (amount - fee) 的 PBUSD。
+    /// @dev 存入 BUSD 对价格的影响：池 BUSD 增加，COL 价格上升（以 BUSD 计即 BUSD 相对贬值）。impact = amount/(poolBUSD+amount)。按影响收费，费留池内。
     function depositBUSD(uint256 amount) external nonReentrant {
         require(amount > 0, "PCOLBUSDPool: zero");
         IERC20(tokenBUSD).safeTransferFrom(msg.sender, address(this), amount);
-        uint256 fee = (amount * depositFeeBps) / BPS;
+        uint256 poolBUSDNow = IERC20(tokenBUSD).balanceOf(address(this));
+        uint256 fee = _depositFeeByImpact(amount, poolBUSDNow);
         uint256 toMint = amount - fee;
         pbusdToken.mint(msg.sender, toMint);
         if (rewardPerDeposit > 0) governanceToken.mintReward(msg.sender, rewardPerDeposit);
         emit DepositBUSD(msg.sender, amount, toMint);
+    }
+
+    /// @dev 次线性：impact = amount/(poolReserve+amount)，fee = amount * impact^0.25 * impactFeeMultiplierBps / BPS。池为空时用固定 depositFeeBps。
+    function _depositFeeByImpact(uint256 amount, uint256 poolReserveAfterDeposit) internal view returns (uint256 fee) {
+        uint256 poolBefore = poolReserveAfterDeposit - amount;
+        if (poolBefore == 0) return (amount * depositFeeBps) / BPS;
+        uint256 sum = poolReserveAfterDeposit;
+        uint256 impact18 = (amount * 1e18) / sum;
+        uint256 impact025 = _impactPow025(impact18);
+        fee = (amount * impact025 * impactFeeMultiplierBps) / (1e18 * BPS);
+        if (fee > amount) fee = amount;
+    }
+
+    /// @dev impact^0.25 in 1e18 scale. impact18 in 1e18 (0..1e18). s2 = sqrt(sqrt(impact18)*1e9) = impact^0.25 * 1e9, so impact025_18 = s2 * 1e9.
+    function _impactPow025(uint256 impact18) internal pure returns (uint256) {
+        if (impact18 == 0) return 0;
+        uint256 s1 = _sqrt(impact18);
+        uint256 s2 = _sqrt(s1 * 1e9);
+        return s2 * 1e9;
+    }
+
+    function _sqrt(uint256 x) internal pure returns (uint256 y) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
     }
 
     function withdrawCOL(uint256 amount) external nonReentrant {
@@ -475,6 +510,20 @@ contract PCOLBUSDPool is ReentrancyGuard {
         emit FlashLoan(receiverAddress, asset, amount, fee);
     }
 
+    /// @dev 测试用：向池内注入 COL，不铸造 PCOL，用于调节池储备从而改变 COL 价格（测试清算等）
+    function injectCOL(uint256 amount) external nonReentrant {
+        if (amount == 0) return;
+        IERC20(tokenCOL).safeTransferFrom(msg.sender, address(this), amount);
+        emit InjectCOL(msg.sender, amount);
+    }
+
+    /// @dev 测试用：向池内注入 BUSD，不铸造 PBUSD，用于调节池储备从而改变 COL 价格（测试清算等）
+    function injectBUSD(uint256 amount) external nonReentrant {
+        if (amount == 0) return;
+        IERC20(tokenBUSD).safeTransferFrom(msg.sender, address(this), amount);
+        emit InjectBUSD(msg.sender, amount);
+    }
+
     function getUserPositionPCOL(address user) external view returns (uint256 collateralPCOL, uint256 debtBUSD_) {
         return (lockedPCOL[user], getCurrentDebtBUSD(user));
     }
@@ -590,6 +639,18 @@ contract PCOLBUSDPool is ReentrancyGuard {
 
     function getFlashLoanFee(uint256 amount) external view returns (uint256) {
         return (amount * flashLoanFeeBps) / BPS;
+    }
+
+    /// @dev 存入 amount COL 时预计收取的管理费（按价格影响，影响 1% 收 0.05%）
+    function getDepositFeeCOL(uint256 amount) external view returns (uint256) {
+        uint256 poolAfter = IERC20(tokenCOL).balanceOf(address(this)) + amount;
+        return _depositFeeByImpact(amount, poolAfter);
+    }
+
+    /// @dev 存入 amount BUSD 时预计收取的管理费
+    function getDepositFeeBUSD(uint256 amount) external view returns (uint256) {
+        uint256 poolAfter = IERC20(tokenBUSD).balanceOf(address(this)) + amount;
+        return _depositFeeByImpact(amount, poolAfter);
     }
 
     /// @dev COL price in 8 decimals (USD, from pool ratio). For frontend display.

@@ -7,6 +7,8 @@ import {
   approveToken,
   depositCOL,
   depositBUSD,
+  getDepositFeeCOL,
+  getDepositFeeBUSD,
 } from '../utils/web3';
 import { useWallet } from '../context/WalletContext';
 import './Page.css';
@@ -29,6 +31,7 @@ export default function Deposit() {
   const [symbol, setSymbol] = useState('COL');
   const [tx, setTx] = useState({ status: '', hash: '' });
   const [loading, setLoading] = useState(false);
+  const [estimatedFee, setEstimatedFee] = useState(0n);
 
   const pool = addresses.lendingPool;
   const col = addresses.collateralAsset;
@@ -47,6 +50,25 @@ export default function Deposit() {
     if (!user || !asset) return;
     getTokenBalance(asset, user).then(setBalance);
   }, [user, asset]);
+
+  useEffect(() => {
+    if (!amount || !pool) {
+      setEstimatedFee(0n);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const amountWei = ethers.parseUnits(amount, decimals);
+        const fee = mode === 'COL' ? await getDepositFeeCOL(amountWei) : await getDepositFeeBUSD(amountWei);
+        if (!cancelled) setEstimatedFee(fee);
+      } catch {
+        if (!cancelled) setEstimatedFee(0n);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [amount, mode, decimals, pool]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -74,7 +96,7 @@ export default function Deposit() {
   return (
     <div className="page">
       <h1>Deposit 存入</h1>
-      <p className="muted">存入 COL 获得 PCOL，存入 BUSD 获得 PBUSD。P 币为池内凭证，取款时 1:1 取回。存入时收取 0.05% 管理费（留在池内），实际获得凭证 = 存入量 × 99.95%。</p>
+      <p className="muted">存入 COL 获得 PCOL，存入 BUSD 获得 PBUSD。P 币为池内凭证，取款时 1:1 取回。管理费按价格影响次线性收取（影响^0.25），大额存入费增长更缓；约 1% 影响收 ~0.05% 费，费留池内；首笔存入用固定 0.05%。</p>
       {!user && <p className="muted">请先连接 MetaMask。</p>}
       {user && (
         <div className="card">
@@ -100,6 +122,24 @@ export default function Deposit() {
                 placeholder="0"
               />
             </div>
+            {amount && (() => {
+              try {
+                const amountWei = ethers.parseUnits(amount, decimals);
+                const net = amountWei - estimatedFee;
+                const feeRateBps = amountWei === 0n ? 0 : Number((estimatedFee * 10000n) / amountWei);
+                const feeRatePct = (feeRateBps / 100).toFixed(2);
+                return (
+                  <p className="muted" style={{ marginBottom: '0.75rem' }}>
+                    预计管理费: <strong>{formatWei(estimatedFee, decimals)}</strong> {symbol}
+                    &nbsp;（管理费率 <strong>{feeRatePct}%</strong>）
+                    &nbsp;·&nbsp;
+                    实际获得凭证: <strong>{formatWei(net < 0n ? 0n : net, decimals)}</strong> {mode === 'COL' ? 'PCOL' : 'PBUSD'}
+                  </p>
+                );
+              } catch {
+                return null;
+              }
+            })()}
             <button type="submit" className="submit-btn" disabled={loading || !amount}>
               {loading ? '存入中...' : `存入 ${symbol}`}
             </button>

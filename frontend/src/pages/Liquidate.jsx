@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import {
   addresses,
   getTokenInfo,
+  getTokenBalance,
   approveToken,
   liquidateBUSD,
   liquidateCOL,
@@ -31,6 +32,8 @@ export default function Liquidate() {
   const [decimals, setDecimals] = useState(18);
   const [tx, setTx] = useState({ status: '', hash: '' });
   const [liquidating, setLiquidating] = useState(null);
+  const [balanceBUSD, setBalanceBUSD] = useState(0n);
+  const [balanceCOL, setBalanceCOL] = useState(0n);
 
   const pool = addresses.lendingPool;
   const col = addresses.collateralAsset;
@@ -113,6 +116,12 @@ export default function Liquidate() {
     getTokenInfo(busd).then((d) => setDecimals(d.decimals));
   }, [busd]);
 
+  useEffect(() => {
+    if (!user || !busd || !col) return;
+    getTokenBalance(busd, user).then(setBalanceBUSD);
+    getTokenBalance(col, user).then(setBalanceCOL);
+  }, [user, busd, col]);
+
   const handleLiquidate = async (row) => {
     if (!user || !pool) return;
     setLiquidating(row.targetUser + row.type);
@@ -134,10 +143,17 @@ export default function Liquidate() {
   return (
     <div className="page">
       <h1>Liquidate 清算</h1>
-      <p className="muted">健康系数 &lt; 1 的仓位会显示在下方。清算者偿还其债务并获取抵押物（含奖励）。可查看清算比例、目标债务后选择是否清算。</p>
+      <p className="muted">
+        健康系数 &lt; 1 的仓位会显示在下方。清算者必须用借款人借出的那种币来偿还债务并换取抵押物：抵押 PCOL 借 BUSD 的仓位 → 清算人用 BUSD 偿还，获得 PCOL；抵押 BUSD（PBUSD）借 COL 的仓位 → 清算人用 COL 偿还，获得 PBUSD（即用 COL 来“买”被清算者的 BUSD 抵押物）。偿还后获得对应抵押物及清算奖励。
+      </p>
       {!user && <p className="muted">请先连接 MetaMask。</p>}
       {user && (
         <div className="card">
+          <p className="muted" style={{ marginBottom: '1rem' }}>
+            你的 BUSD 余额: <strong>{formatWei(balanceBUSD, decimals)}</strong>（用于清算「抵押 PCOL 借 BUSD」仓位，用 BUSD 买 PCOL）
+            &nbsp;·&nbsp;
+            你的 COL 余额: <strong>{formatWei(balanceCOL, decimals)}</strong>（用于清算「抵押 BUSD 借 COL」仓位，用 COL 买 PBUSD）
+          </p>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <strong>可清算仓位（健康系数 &lt; 1）</strong>
             <button type="button" className="btn" onClick={fetchLiquidatable} disabled={loadingList}>
@@ -167,9 +183,17 @@ export default function Liquidate() {
                         {row.targetUser.slice(0, 6)}…{row.targetUser.slice(-4)}
                       </td>
                       <td style={{ padding: '0.5rem' }}>
-                        {row.type === 'BUSD' ? 'PCOL→BUSD（还 BUSD 得 PCOL）' : 'PBUSD→COL（还 COL 得 PBUSD）'}
+                        {row.type === 'BUSD' ? 'PCOL→BUSD（用 BUSD 还债得 PCOL）' : 'PBUSD→COL（用 COL 还债得 PBUSD）'}
                       </td>
-                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatWei(row.debt, decimals)} {row.repaySymbol}</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                        {formatWei(row.debt, decimals)} {row.repaySymbol}
+                        {row.type === 'BUSD' && balanceBUSD < row.debt && (
+                          <span className="danger" style={{ marginLeft: 4 }}>余额不足</span>
+                        )}
+                        {row.type === 'COL' && balanceCOL < row.debt && (
+                          <span className="danger" style={{ marginLeft: 4 }}>余额不足</span>
+                        )}
+                      </td>
                       <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatWei(row.collateral, decimals)} {row.type === 'BUSD' ? 'PCOL' : 'PBUSD'}</td>
                       <td style={{ padding: '0.5rem', textAlign: 'right' }}>{row.healthFactor != null ? row.healthFactor.toFixed(2) : '—'}</td>
                       <td style={{ padding: '0.5rem', textAlign: 'right' }}>{row.liquidationBonusPct}%</td>
@@ -177,8 +201,19 @@ export default function Liquidate() {
                         <button
                           type="button"
                           className="btn btn-primary"
-                          disabled={liquidating !== null}
+                          disabled={
+                            liquidating !== null ||
+                            (row.type === 'BUSD' && balanceBUSD < row.debt) ||
+                            (row.type === 'COL' && balanceCOL < row.debt)
+                          }
                           onClick={() => handleLiquidate(row)}
+                          title={
+                            row.type === 'BUSD' && balanceBUSD < row.debt
+                              ? 'BUSD 余额不足，需用 BUSD 偿还'
+                              : row.type === 'COL' && balanceCOL < row.debt
+                                ? 'COL 余额不足，需用 COL 偿还'
+                                : undefined
+                          }
                         >
                           {liquidating === row.targetUser + row.type ? '清算中...' : '清算'}
                         </button>

@@ -10,6 +10,8 @@ export const POOL_ABI = [
   'function depositBUSD(uint256 amount)',
   'function withdrawCOL(uint256 amount)',
   'function withdrawBUSD(uint256 amount)',
+  'function injectCOL(uint256 amount)',
+  'function injectBUSD(uint256 amount)',
   'function depositCollateralPCOL(uint256 amount)',
   'function withdrawCollateralPCOL(uint256 amount)',
   'function depositCollateralPBUSD(uint256 amount)',
@@ -36,6 +38,9 @@ export const POOL_ABI = [
   'function liquidationThresholdPBUSD() view returns (uint256)',
   'function liquidationBonus() view returns (uint256)',
   'function depositFeeBps() view returns (uint256)',
+  'function getDepositFeeCOL(uint256 amount) view returns (uint256)',
+  'function getDepositFeeBUSD(uint256 amount) view returns (uint256)',
+  'function impactFeeMultiplierBps() view returns (uint256)',
   'function getCurrentDebtBUSD(address user) view returns (uint256)',
   'function getCurrentDebtCOL(address user) view returns (uint256)',
   'function getUtilizationBUSD() view returns (uint256)',
@@ -72,4 +77,10 @@ export const ERC20_ABI = [
   'function approve(address spender, uint256 amount) returns (bool)',
   'function allowance(address owner, address spender) view returns (uint256)',
   'function mint(uint256 amount)',
+  'function mint(address to, uint256 amount)',
+];
+
+/** MockERC20 两参数 mint，单独使用以避免与 mint(uint256) 重载歧义 (ethers v6 INVALID_ARGUMENT). */
+export const MOCK_ERC20_MINT_ABI = [
+  'function mint(address to, uint256 amount)',
 ];

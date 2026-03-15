@@ -9,6 +9,7 @@ import Liquidate from './pages/Liquidate';
 import FlashLoan from './pages/FlashLoan';
 import Analytics from './pages/Analytics';
 import InterestRateTest from './pages/InterestRateTest';
+import PoolTest from './pages/PoolTest';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/interest-rate-test" element={<InterestRateTest />} />
+        <Route path="/pool-test" element={<PoolTest />} />
         <Route path="/deposit" element={<Deposit />} />
         <Route path="/borrow" element={<Borrow />} />
         <Route path="/repay" element={<Repay />} />
