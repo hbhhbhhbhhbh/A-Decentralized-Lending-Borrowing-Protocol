@@ -6,8 +6,6 @@ import Borrow from './pages/Borrow';
 import Repay from './pages/Repay';
 import Withdraw from './pages/Withdraw';
 import Liquidate from './pages/Liquidate';
-import FlashLoan from './pages/FlashLoan';
-import Analytics from './pages/Analytics';
 import InterestRateTest from './pages/InterestRateTest';
 import PoolTest from './pages/PoolTest';
 
@@ -23,8 +21,6 @@ function App() {
         <Route path="/repay" element={<Repay />} />
         <Route path="/withdraw" element={<Withdraw />} />
         <Route path="/liquidate" element={<Liquidate />} />
-        <Route path="/flash-loan" element={<FlashLoan />} />
-        <Route path="/analytics" element={<Analytics />} />
       </Routes>
     </Layout>
   );
