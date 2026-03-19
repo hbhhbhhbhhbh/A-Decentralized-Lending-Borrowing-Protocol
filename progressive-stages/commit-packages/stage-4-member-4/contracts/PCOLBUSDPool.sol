@@ -55,7 +55,7 @@ contract PCOLBUSDPool is ReentrancyGuard {
     /// @dev 存款管理费：池为空时用此固定费率（bps）
     uint256 public depositFeeBps = 5;
     /// @dev 次线性收费倍数（影响^0.25）：impact 1% 时约收 0.005%，impactFeeMultiplierBps=2。fee = amount * impact^0.25 * impactFeeMultiplierBps / BPS
-    uint256 public impactFeeMultiplierBps = 10;
+    uint256 public impactFeeMultiplierBps = 2;
     uint256 public rewardPerDeposit = 1e18;
     uint256 public rewardPerBorrow = 1e17;
 

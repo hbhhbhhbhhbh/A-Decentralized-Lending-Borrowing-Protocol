@@ -1,37 +1,49 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { connectWallet, getChainId } from '../utils/web3';
-import { useWallet } from '../context/WalletContext';
+import { connectWallet, getAccount, getChainId } from '../utils/web3';
 import './Header.css';
 
 export default function Header() {
-  const { user, refreshUser } = useWallet();
+  const [address, setAddress] = useState(null);
   const [chainId, setChainId] = useState(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
   const location = useLocation();
 
+  const loadAccount = async () => {
+    const acc = await getAccount();
+    setAddress(acc);
+    const cid = await getChainId();
+    setChainId(cid);
+  };
+
   useEffect(() => {
-    getChainId().then(setChainId);
-  }, [user]);
+    loadAccount();
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', loadAccount);
+      window.ethereum.on('chainChanged', () => window.location.reload());
+    }
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', loadAccount);
+      }
+    };
+  }, []);
 
   const handleConnect = async () => {
-    console.log('[DeFi] Header handleConnect start');
     setConnecting(true);
     setError('');
     try {
       await connectWallet();
-      const acc = await refreshUser();
-      console.log('[DeFi] Header connect success', { account: acc ? `${acc.slice(0, 8)}...` : null });
+      await loadAccount();
     } catch (e) {
-      console.warn('[DeFi] Header connect failed', e?.message || e);
       setError(e.message || 'Failed to connect');
     } finally {
       setConnecting(false);
     }
   };
 
-  const shortAddress = user ? `${user.slice(0, 6)}...${user.slice(-4)}` : '';
+  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
   const navLinks = [
     { to: '/', label: 'Dashboard' },
@@ -40,8 +52,8 @@ export default function Header() {
     { to: '/repay', label: 'Repay' },
     { to: '/withdraw', label: 'Withdraw' },
     { to: '/liquidate', label: 'Liquidate' },
-    { to: '/interest-rate-test', label: 'Rate Test' },
-    { to: '/pool-test', label: 'Pool Test' },
+    { to: '/flash-loan', label: 'Flash Loan' },
+    { to: '/analytics', label: 'Analytics' },
   ];
 
   return (
@@ -66,7 +78,7 @@ export default function Header() {
             <span className="chain-warn">Switch to Local/Sepolia</span>
           )}
           {error && <span className="error-msg">{error}</span>}
-          {user ? (
+          {address ? (
             <span className="address">{shortAddress}</span>
           ) : (
             <button className="connect-btn" onClick={handleConnect} disabled={connecting}>

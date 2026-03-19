@@ -40,8 +40,10 @@ export default function Header() {
     { to: '/repay', label: 'Repay' },
     { to: '/withdraw', label: 'Withdraw' },
     { to: '/liquidate', label: 'Liquidate' },
+    { to: '/flash-loan', label: 'Flash Loan' },
     { to: '/interest-rate-test', label: 'Rate Test' },
-    { to: '/pool-test', label: 'Pool Test' },
+    { to: '/pool-test', label: '池储备测试' },
+    { to: '/analytics', label: 'Analytics' },
   ];
 
   return (

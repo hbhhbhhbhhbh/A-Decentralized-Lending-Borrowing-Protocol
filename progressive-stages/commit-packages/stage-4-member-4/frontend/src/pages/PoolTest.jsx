@@ -65,7 +65,7 @@ export default function PoolTest() {
     setTx({ status: '', hash: '' });
     try {
       const amountWei = ethers.parseUnits(addColAmount, colDecimals);
-      if (amountWei <= 0n) throw new Error('Please enter an amount greater than 0');
+      if (amountWei <= 0n) throw new Error('请输入大于 0 的数量');
       const receipt = await mintTokenTo(col, pool, amountWei);
       setTx({ status: 'success', hash: receipt.hash });
       setAddColAmount('');
@@ -84,7 +84,7 @@ export default function PoolTest() {
     setTx({ status: '', hash: '' });
     try {
       const amountWei = ethers.parseUnits(addBusdAmount, busdDecimals);
-      if (amountWei <= 0n) throw new Error('Please enter an amount greater than 0');
+      if (amountWei <= 0n) throw new Error('请输入大于 0 的数量');
       const receipt = await mintTokenTo(busd, pool, amountWei);
       setTx({ status: 'success', hash: receipt.hash });
       setAddBusdAmount('');
@@ -100,29 +100,29 @@ export default function PoolTest() {
 
   return (
     <div className="page">
-      <h1>Pool Reserve Adjustment (Test)</h1>
+      <h1>池储备调节（测试）</h1>
       <p className="muted">
-        Directly increase pool COL or BUSD by minting test tokens to the pool address, without spending your wallet balance, to change COL price (price = pool BUSD / pool COL).
-        For example, increasing pool COL can push COL price down, which may drop HF below 1 for PCOL->BUSD positions. Then you can test liquidation on the Liquidate page. Available only for local/testnet Mock tokens.
+        直接让池内 COL 或 BUSD 数量增加（调用测试代币的 mint 到池地址），不消耗你的余额，用于改变 COL 价格（价格 = 池 BUSD / 池 COL）。
+        例如：增加大量池内 COL 会使 COL 价格下跌，抵押 PCOL 借 BUSD 的仓位健康因子可能降至 1 以下，即可在「Liquidate」页进行清算测试。仅测试网/本地 Mock 代币可用。
       </p>
 
       <div className="card">
-        <h3>Current Pool Reserves & Price</h3>
-        <p><strong>Pool COL:</strong> {formatWei(poolCOL, colDecimals)}</p>
-        <p><strong>Pool BUSD:</strong> {formatWei(poolBUSD, busdDecimals)}</p>
-        <p><strong>COL Price (USD, 8 decimals):</strong> {priceCOLDisplay}</p>
+        <h3>当前池储备与价格</h3>
+        <p><strong>池内 COL:</strong> {formatWei(poolCOL, colDecimals)}</p>
+        <p><strong>池内 BUSD:</strong> {formatWei(poolBUSD, busdDecimals)}</p>
+        <p><strong>COL 价格 (USD, 8 位):</strong> {priceCOLDisplay}</p>
       </div>
 
-      {!user && <p className="muted">Please connect MetaMask first.</p>}
+      {!user && <p className="muted">请先连接 MetaMask 后再操作。</p>}
 
       {user && (
         <>
           <div className="card">
-            <h3>Add Pool COL (Lower COL Price)</h3>
-            <p className="muted">Mint COL directly to the pool without spending your wallet balance.</p>
+            <h3>增加池内 COL（降低 COL 价格）</h3>
+            <p className="muted">直接向池子铸造 COL，不消耗你的余额。</p>
             <form onSubmit={handleAddCOL}>
               <div className="form-group">
-                <label>Amount</label>
+                <label>数量</label>
                 <input
                   type="text"
                   value={addColAmount}
@@ -131,17 +131,17 @@ export default function PoolTest() {
                 />
               </div>
               <button type="submit" className="submit-btn" disabled={loading || !addColAmount}>
-                {loading ? 'Submitting...' : 'Add Pool COL'}
+                {loading ? '提交中...' : '增加池内 COL'}
               </button>
             </form>
           </div>
 
           <div className="card">
-            <h3>Add Pool BUSD (Raise COL Price)</h3>
-            <p className="muted">Mint BUSD directly to the pool without spending your wallet balance.</p>
+            <h3>增加池内 BUSD（提高 COL 价格）</h3>
+            <p className="muted">直接向池子铸造 BUSD，不消耗你的余额。</p>
             <form onSubmit={handleAddBUSD}>
               <div className="form-group">
-                <label>Amount</label>
+                <label>数量</label>
                 <input
                   type="text"
                   value={addBusdAmount}
@@ -150,21 +150,21 @@ export default function PoolTest() {
                 />
               </div>
               <button type="submit" className="submit-btn" disabled={loading || !addBusdAmount}>
-                {loading ? 'Submitting...' : 'Add Pool BUSD'}
+                {loading ? '提交中...' : '增加池内 BUSD'}
               </button>
             </form>
           </div>
 
           {tx.status && (
             <p className={tx.status === 'success' ? 'success' : 'danger'} style={{ marginTop: '1rem' }}>
-              {tx.status === 'success' ? `Success. Tx: ${tx.hash}` : tx.hash}
+              {tx.status === 'success' ? `成功。Tx: ${tx.hash}` : tx.hash}
             </p>
           )}
         </>
       )}
 
       <p className="muted" style={{ marginTop: '1.5rem' }}>
-        Data auto-refreshes every 15 seconds and after successful transactions.
+        数据每 15 秒自动刷新，或提交交易成功后会自动刷新。
       </p>
     </div>
   );

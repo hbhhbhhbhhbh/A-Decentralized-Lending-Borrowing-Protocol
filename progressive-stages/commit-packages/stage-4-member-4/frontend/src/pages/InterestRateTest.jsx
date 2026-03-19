@@ -11,7 +11,7 @@ import './Page.css';
 
 const BLOCKS_PER_DAY = Math.round(BLOCKS_PER_YEAR / 365);
 
-/** Compound growth: (1 + r)^n, r = per-block rate, n = number of blocks */
+/** 复利：(1 + r)^n，r 为每 block 利率（小数），n 为 block 数 */
 function compoundGrowth(rPerBlock, nBlocks) {
   if (nBlocks <= 0) return 1;
   return Math.pow(1 + rPerBlock, nBlocks);
@@ -24,12 +24,12 @@ export default function InterestRateTest() {
   const [supplyAPYBUSD, setSupplyAPYBUSD] = useState(0n);
   const [supplyAPYCOL, setSupplyAPYCOL] = useState(0n);
 
-  // Borrow interest simulation
+  // 借款利息测试
   const [borrowAsset, setBorrowAsset] = useState('BUSD');
   const [borrowAmount, setBorrowAmount] = useState('1000');
-  const [borrowBlocks, setBorrowBlocks] = useState(String(BLOCKS_PER_DAY)); // default: 1 day
+  const [borrowBlocks, setBorrowBlocks] = useState(String(BLOCKS_PER_DAY)); // 默认 1 天
 
-  // Supply interest simulation
+  // 存款利息测试
   const [supplyAsset, setSupplyAsset] = useState('BUSD');
   const [supplyAmount, setSupplyAmount] = useState('1000');
   const [supplyBlocks, setSupplyBlocks] = useState(String(BLOCKS_PER_DAY));
@@ -91,28 +91,28 @@ export default function InterestRateTest() {
 
   return (
     <div className="page">
-      <h1>Rate Test: Debt / Supply Interest</h1>
+      <h1>利率测试：债务 / 存款利息</h1>
       <p className="muted">
-        Using current on-chain rates, estimate debt growth after N blocks and supply growth after N blocks.
+        用当前链上利率，计算「借入一笔钱经过 N 个 block 后应付多少利息」和「存入一笔钱经过 N 个 block 后能拿多少利息」。
       </p>
       <button type="button" className="submit-btn" onClick={load} disabled={loading} style={{ marginBottom: '1rem' }}>
-        {loading ? 'Loading...' : 'Refresh Rates'}
+        {loading ? '加载中...' : '刷新利率'}
       </button>
 
-      {loading && ratePerBlockBUSD === 0n && <p className="muted">Connecting and loading...</p>}
+      {loading && ratePerBlockBUSD === 0n && <p className="muted">连接并加载中…</p>}
 
       <div className="card">
-        <h3>Borrow Interest</h3>
-        <p className="muted">Debt compounds per block: Debt(n) = Principal x (1 + ratePerBlock)^n</p>
+        <h3>借款利息</h3>
+        <p className="muted">债务按每 block 复利：债务(n) = 初始 × (1 + ratePerBlock)^n</p>
         <div className="form-group">
-          <label>Asset</label>
+          <label>资产</label>
           <select value={borrowAsset} onChange={(e) => setBorrowAsset(e.target.value)} style={{ maxWidth: 120, padding: '0.5rem' }}>
             <option value="BUSD">BUSD</option>
             <option value="COL">COL</option>
           </select>
         </div>
         <div className="form-group">
-          <label>Borrow Amount (Initial Debt)</label>
+          <label>借款金额（初始债务）</label>
           <input
             type="text"
             value={borrowAmount}
@@ -121,7 +121,7 @@ export default function InterestRateTest() {
           />
         </div>
         <div className="form-group">
-          <label>Number of Blocks ({BLOCKS_PER_DAY} blocks ≈ 1 day)</label>
+          <label>经过 block 数（约 {BLOCKS_PER_DAY} block ≈ 1 天）</label>
           <input
             type="text"
             value={borrowBlocks}
@@ -129,23 +129,23 @@ export default function InterestRateTest() {
             placeholder={String(BLOCKS_PER_DAY)}
           />
         </div>
-        <p><strong>Current Borrow Rate per Block:</strong> {(borrowRateNum * 100).toFixed(6)}%</p>
-        <p><strong>After {nBorrowBlocks} blocks:</strong></p>
-        <p>Debt = <strong>{debtAfter.toFixed(6)}</strong> {borrowAsset} &nbsp;(interest ≈ <strong>{borrowInterest.toFixed(6)}</strong> {borrowAsset})</p>
+        <p><strong>当前每 block 借款利率：</strong> {(borrowRateNum * 100).toFixed(6)}%</p>
+        <p><strong>经过 {nBorrowBlocks} block 后：</strong></p>
+        <p>债务 = <strong>{debtAfter.toFixed(6)}</strong> {borrowAsset} &nbsp;（利息 ≈ <strong>{borrowInterest.toFixed(6)}</strong> {borrowAsset}）</p>
       </div>
 
       <div className="card">
-        <h3>Supply Interest</h3>
-        <p className="muted">Supply value compounds using per-block rate derived from Supply APY</p>
+        <h3>存款利息</h3>
+        <p className="muted">存款价值按 Supply APY 折算成每 block 利率后复利增长</p>
         <div className="form-group">
-          <label>Asset</label>
+          <label>资产</label>
           <select value={supplyAsset} onChange={(e) => setSupplyAsset(e.target.value)} style={{ maxWidth: 120, padding: '0.5rem' }}>
             <option value="BUSD">BUSD</option>
             <option value="COL">COL</option>
           </select>
         </div>
         <div className="form-group">
-          <label>Supply Amount</label>
+          <label>存款金额</label>
           <input
             type="text"
             value={supplyAmount}
@@ -154,7 +154,7 @@ export default function InterestRateTest() {
           />
         </div>
         <div className="form-group">
-          <label>Number of Blocks</label>
+          <label>经过 block 数</label>
           <input
             type="text"
             value={supplyBlocks}
@@ -162,14 +162,14 @@ export default function InterestRateTest() {
             placeholder={String(BLOCKS_PER_DAY)}
           />
         </div>
-        <p><strong>Current Supply APY:</strong> {(Number(supplyAPYWei) / 1e18 * 100).toFixed(2)}% &nbsp; -> per block ≈ {(supplyRatePerBlock * 100).toFixed(6)}%</p>
-        <p><strong>After {nSupplyBlocks} blocks:</strong></p>
-        <p>Value = <strong>{valueAfter.toFixed(6)}</strong> {supplyAsset} &nbsp;(interest ≈ <strong>{supplyInterest.toFixed(6)}</strong> {supplyAsset})</p>
+        <p><strong>当前 Supply APY：</strong> {(Number(supplyAPYWei) / 1e18 * 100).toFixed(2)}% &nbsp; → 每 block ≈ {(supplyRatePerBlock * 100).toFixed(6)}%</p>
+        <p><strong>经过 {nSupplyBlocks} block 后：</strong></p>
+        <p>价值 = <strong>{valueAfter.toFixed(6)}</strong> {supplyAsset} &nbsp;（利息 ≈ <strong>{supplyInterest.toFixed(6)}</strong> {supplyAsset}）</p>
       </div>
 
       <div className="card">
-        <h3>Quick Conversion</h3>
-        <p>1 day ≈ {BLOCKS_PER_DAY} blocks &nbsp;|&nbsp; 1 year ≈ {BLOCKS_PER_YEAR} blocks</p>
+        <h3>快捷：按天数换算 block</h3>
+        <p>1 天 ≈ {BLOCKS_PER_DAY} blocks &nbsp;|&nbsp; 1 年 ≈ {BLOCKS_PER_YEAR} blocks</p>
       </div>
     </div>
   );
