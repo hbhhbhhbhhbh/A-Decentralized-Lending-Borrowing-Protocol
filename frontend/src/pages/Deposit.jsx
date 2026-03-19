@@ -77,7 +77,7 @@ export default function Deposit() {
     setTx({ status: '', hash: '' });
     try {
       const amountWei = ethers.parseUnits(amount, decimals);
-      if (amountWei > balance) throw new Error('余额不足');
+      if (amountWei > balance) throw new Error('Insufficient balance');
       const { getTokenAllowance } = await import('../utils/web3');
       const allowance = await getTokenAllowance(asset, user, pool);
       if (allowance < amountWei) await approveToken(asset, pool, ethers.MaxUint256);
@@ -95,26 +95,26 @@ export default function Deposit() {
 
   return (
     <div className="page">
-      <h1>Deposit 存入</h1>
-      <p className="muted">存入 COL 获得 PCOL，存入 BUSD 获得 PBUSD。P 币为池内凭证，取款时 1:1 取回。管理费按价格影响次线性收取（影响^0.25），大额存入费增长更缓；约 1% 影响收 ~0.05% 费，费留池内；首笔存入用固定 0.05%。</p>
-      {!user && <p className="muted">请先连接 MetaMask。</p>}
+      <h1>Deposit</h1>
+      <p className="muted">Deposit COL to receive PCOL, or deposit BUSD to receive PBUSD. P tokens are pool receipts and can be redeemed 1:1 on withdrawal. Management fee uses a sublinear price-impact curve (impact^0.25), so fee growth is slower for large deposits; around 1% impact is charged about ~0.05%, and fees remain in the pool. The first deposit uses a fixed 0.05% fee.</p>
+      {!user && <p className="muted">Please connect MetaMask first.</p>}
       {user && (
         <div className="card">
           <div className="form-group">
-            <label>存入资产</label>
+            <label>Asset</label>
             <select
               value={mode}
               onChange={(e) => setMode(e.target.value)}
               style={{ maxWidth: 320, padding: '0.6rem 0.75rem', borderRadius: 8 }}
             >
-              <option value="COL">COL → 获得 PCOL</option>
-              <option value="BUSD">BUSD → 获得 PBUSD</option>
+              <option value="COL">COL -> Receive PCOL</option>
+              <option value="BUSD">BUSD -> Receive PBUSD</option>
             </select>
           </div>
-          <p><strong>钱包 {symbol}:</strong> {formatWei(balance, decimals)}</p>
+          <p><strong>Wallet {symbol}:</strong> {formatWei(balance, decimals)}</p>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>数量</label>
+              <label>Amount</label>
               <input
                 type="text"
                 value={amount}
@@ -130,10 +130,10 @@ export default function Deposit() {
                 const feeRatePct = (feeRateBps / 100).toFixed(2);
                 return (
                   <p className="muted" style={{ marginBottom: '0.75rem' }}>
-                    预计管理费: <strong>{formatWei(estimatedFee, decimals)}</strong> {symbol}
-                    &nbsp;（管理费率 <strong>{feeRatePct}%</strong>）
+                    Estimated management fee: <strong>{formatWei(estimatedFee, decimals)}</strong> {symbol}
+                    &nbsp;(fee rate <strong>{feeRatePct}%</strong>)
                     &nbsp;·&nbsp;
-                    实际获得凭证: <strong>{formatWei(net < 0n ? 0n : net, decimals)}</strong> {mode === 'COL' ? 'PCOL' : 'PBUSD'}
+                    You receive: <strong>{formatWei(net < 0n ? 0n : net, decimals)}</strong> {mode === 'COL' ? 'PCOL' : 'PBUSD'}
                   </p>
                 );
               } catch {
@@ -141,12 +141,12 @@ export default function Deposit() {
               }
             })()}
             <button type="submit" className="submit-btn" disabled={loading || !amount}>
-              {loading ? '存入中...' : `存入 ${symbol}`}
+              {loading ? 'Depositing...' : `Deposit ${symbol}`}
             </button>
           </form>
           {tx.status && (
             <p className={tx.status === 'success' ? 'success' : 'danger'} style={{ marginTop: '1rem' }}>
-              {tx.status === 'success' ? `成功。Tx: ${tx.hash}` : tx.hash}
+              {tx.status === 'success' ? `Success. Tx: ${tx.hash}` : tx.hash}
             </p>
           )}
         </div>

@@ -142,38 +142,38 @@ export default function Liquidate() {
 
   return (
     <div className="page">
-      <h1>Liquidate 清算</h1>
+      <h1>Liquidate</h1>
       <p className="muted">
-        健康系数 &lt; 1 的仓位会显示在下方。清算者必须用借款人借出的那种币来偿还债务并换取抵押物：抵押 PCOL 借 BUSD 的仓位 → 清算人用 BUSD 偿还，获得 PCOL；抵押 BUSD（PBUSD）借 COL 的仓位 → 清算人用 COL 偿还，获得 PBUSD（即用 COL 来“买”被清算者的 BUSD 抵押物）。偿还后获得对应抵押物及清算奖励。
+        Positions with health factor &lt; 1 are shown below. The liquidator must repay using the same borrowed asset: for PCOL->BUSD positions, repay with BUSD to receive PCOL; for PBUSD->COL positions, repay with COL to receive PBUSD. Repayment grants collateral plus liquidation bonus.
       </p>
-      {!user && <p className="muted">请先连接 MetaMask。</p>}
+      {!user && <p className="muted">Please connect MetaMask first.</p>}
       {user && (
         <div className="card">
           <p className="muted" style={{ marginBottom: '1rem' }}>
-            你的 BUSD 余额: <strong>{formatWei(balanceBUSD, decimals)}</strong>（用于清算「抵押 PCOL 借 BUSD」仓位，用 BUSD 买 PCOL）
+            Your BUSD balance: <strong>{formatWei(balanceBUSD, decimals)}</strong> (used to liquidate PCOL->BUSD positions)
             &nbsp;·&nbsp;
-            你的 COL 余额: <strong>{formatWei(balanceCOL, decimals)}</strong>（用于清算「抵押 BUSD 借 COL」仓位，用 COL 买 PBUSD）
+            Your COL balance: <strong>{formatWei(balanceCOL, decimals)}</strong> (used to liquidate PBUSD->COL positions)
           </p>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <strong>可清算仓位（健康系数 &lt; 1）</strong>
+            <strong>Liquidatable Positions (HF &lt; 1)</strong>
             <button type="button" className="btn" onClick={fetchLiquidatable} disabled={loadingList}>
-              {loadingList ? '加载中...' : '刷新列表'}
+              {loadingList ? 'Loading...' : 'Refresh'}
             </button>
           </div>
-          {loadingList && <p className="muted">正在拉取抵押事件并筛选可清算账户…</p>}
-          {!loadingList && list.length === 0 && <p className="muted">当前无可清算仓位。</p>}
+          {loadingList && <p className="muted">Fetching collateral events and filtering liquidatable accounts...</p>}
+          {!loadingList && list.length === 0 && <p className="muted">No liquidatable positions right now.</p>}
           {!loadingList && list.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                    <th style={{ textAlign: 'left', padding: '0.5rem' }}>目标账户</th>
-                    <th style={{ textAlign: 'left', padding: '0.5rem' }}>仓位类型</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>目标债务</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>抵押物</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>健康系数</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>清算奖励比例</th>
-                    <th style={{ textAlign: 'center', padding: '0.5rem' }}>操作</th>
+                    <th style={{ textAlign: 'left', padding: '0.5rem' }}>Target Account</th>
+                    <th style={{ textAlign: 'left', padding: '0.5rem' }}>Position Type</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>Debt to Repay</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>Collateral</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>Health Factor</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>Bonus</th>
+                    <th style={{ textAlign: 'center', padding: '0.5rem' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,15 +183,15 @@ export default function Liquidate() {
                         {row.targetUser.slice(0, 6)}…{row.targetUser.slice(-4)}
                       </td>
                       <td style={{ padding: '0.5rem' }}>
-                        {row.type === 'BUSD' ? 'PCOL→BUSD（用 BUSD 还债得 PCOL）' : 'PBUSD→COL（用 COL 还债得 PBUSD）'}
+                        {row.type === 'BUSD' ? 'PCOL->BUSD (repay BUSD, receive PCOL)' : 'PBUSD->COL (repay COL, receive PBUSD)'}
                       </td>
                       <td style={{ padding: '0.5rem', textAlign: 'right' }}>
                         {formatWei(row.debt, decimals)} {row.repaySymbol}
                         {row.type === 'BUSD' && balanceBUSD < row.debt && (
-                          <span className="danger" style={{ marginLeft: 4 }}>余额不足</span>
+                          <span className="danger" style={{ marginLeft: 4 }}>Insufficient</span>
                         )}
                         {row.type === 'COL' && balanceCOL < row.debt && (
-                          <span className="danger" style={{ marginLeft: 4 }}>余额不足</span>
+                          <span className="danger" style={{ marginLeft: 4 }}>Insufficient</span>
                         )}
                       </td>
                       <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatWei(row.collateral, decimals)} {row.type === 'BUSD' ? 'PCOL' : 'PBUSD'}</td>
@@ -209,13 +209,13 @@ export default function Liquidate() {
                           onClick={() => handleLiquidate(row)}
                           title={
                             row.type === 'BUSD' && balanceBUSD < row.debt
-                              ? 'BUSD 余额不足，需用 BUSD 偿还'
+                              ? 'Insufficient BUSD balance; BUSD required'
                               : row.type === 'COL' && balanceCOL < row.debt
-                                ? 'COL 余额不足，需用 COL 偿还'
+                                ? 'Insufficient COL balance; COL required'
                                 : undefined
                           }
                         >
-                          {liquidating === row.targetUser + row.type ? '清算中...' : '清算'}
+                          {liquidating === row.targetUser + row.type ? 'Liquidating...' : 'Liquidate'}
                         </button>
                       </td>
                     </tr>
@@ -226,7 +226,7 @@ export default function Liquidate() {
           )}
           {tx.status && (
             <p className={tx.status === 'success' ? 'success' : 'danger'} style={{ marginTop: '1rem' }}>
-              {tx.status === 'success' ? `成功。Tx: ${tx.hash}` : tx.hash}
+              {tx.status === 'success' ? `Success. Tx: ${tx.hash}` : tx.hash}
             </p>
           )}
         </div>

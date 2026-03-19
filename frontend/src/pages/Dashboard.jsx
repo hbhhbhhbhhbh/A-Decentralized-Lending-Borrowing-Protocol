@@ -137,7 +137,7 @@ export default function Dashboard() {
         <>
           <div className="card">
             <h3>Pool</h3>
-            <p><strong>池内余额:</strong> COL {fmt(poolColBal, dec)} | BUSD {fmt(poolBusdBal, dec)}</p>
+            <p><strong>Pool Balances:</strong> COL {fmt(poolColBal, dec)} | BUSD {fmt(poolBusdBal, dec)}</p>
             <p><strong>Utilization:</strong> BUSD {fmtPct(utilBUSD)} | COL {fmtPct(utilCOL)}</p>
             <p><strong>Supply APY:</strong> BUSD {fmtPct(supplyAPYBUSD)} | COL {fmtPct(supplyAPYCOL)}</p>
             <p><strong>Borrow APY:</strong> BUSD {fmtPct(borrowAPYBUSD)} | COL {fmtPct(borrowAPYCOL)}</p>
@@ -150,7 +150,7 @@ export default function Dashboard() {
           </div>
           <div className="card">
             <h3>Wallet</h3>
-            <p>COL: {fmt(colBal, dec)} | BUSD: {fmt(busdBal, dec)} | PCOL: {fmt(pcolBal, dec)} | PBUSD: {fmt(pbusdBal, dec)} {govToken ? <>| GOV: {fmt(govBal, dec)} <span className="muted">(存款/借款奖励)</span></> : null}</p>
+            <p>COL: {fmt(colBal, dec)} | BUSD: {fmt(busdBal, dec)} | PCOL: {fmt(pcolBal, dec)} | PBUSD: {fmt(pbusdBal, dec)} {govToken ? <>| GOV: {fmt(govBal, dec)} <span className="muted">(deposit/borrow rewards)</span></> : null}</p>
           </div>
           {(posPCOL.collateralPCOL > 0n || posPCOL.debtBUSD > 0n) && (
             <div className="card">

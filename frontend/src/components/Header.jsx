@@ -41,7 +41,7 @@ export default function Header() {
     { to: '/withdraw', label: 'Withdraw' },
     { to: '/liquidate', label: 'Liquidate' },
     { to: '/interest-rate-test', label: 'Rate Test' },
-    { to: '/pool-test', label: '池储备测试' },
+    { to: '/pool-test', label: 'Pool Test' },
   ];
 
   return (
